@@ -121,3 +121,22 @@ export async function deleteImage(image: LectureImage) {
   if (error) throw error;
   await supabase.storage.from(BUCKET).remove([image.path]);
 }
+
+export type SubjectStats = { sessions: number; started: number; notes: number; images: number };
+
+/** Per-subject totals for the home page. A session counts as started once it has a topic, note or image. */
+export async function listSubjectStats(): Promise<Record<string, SubjectStats>> {
+  const { data, error } = await supabase.from('sessions').select('subject_slug, topic, notes(count), images(count)');
+  if (error) throw error;
+  const stats: Record<string, SubjectStats> = {};
+  for (const r of data as unknown as (SessionRow & { subject_slug: string })[]) {
+    const s = (stats[r.subject_slug] ??= { sessions: 0, started: 0, notes: 0, images: 0 });
+    const notes = r.notes[0]?.count ?? 0;
+    const images = r.images[0]?.count ?? 0;
+    s.sessions += 1;
+    s.notes += notes;
+    s.images += images;
+    if (r.topic.trim() || notes || images) s.started += 1;
+  }
+  return stats;
+}
