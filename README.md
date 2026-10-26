@@ -4,11 +4,12 @@ React + Vite front end, Supabase (database, image storage, login) back end, host
 
 ## 1. Create the Supabase project
 1. Sign up at https://supabase.com → **New project** (pick a region near you, save the DB password).
-2. **SQL Editor → New query**: paste `supabase/schema.sql`, replace `YOUR_EMAIL@example.com` with your email, **Run**.
-   This creates the tables, the security rules, the `lecture-images` bucket and 8 sessions per subject.
-3. **Authentication → Users → Add user → Create new user**: same email + a strong password, tick *Auto Confirm User*.
-4. **Authentication → Sign In / Providers**: turn **off** "Allow new users to sign up".
-5. **Project Settings → API Keys**: copy the Project URL and the *publishable* key (or legacy *anon* key).
+2. **SQL Editor → New query**: paste `supabase/schema.sql` and **Run**. This creates the tables, the per-user
+   security rules, the private `lecture-images` bucket, and a trigger that gives every new account 8 sessions per subject.
+3. **Authentication → Sign In / Providers**: keep "Allow new users to sign up" on, and choose whether new users must
+   confirm their email (see *Sign-ups* below).
+4. **Authentication → URL Configuration**: set *Site URL* to your deployed URL (e.g. your Vercel domain).
+5. **Project Settings → API Keys**: copy the Project URL and the *publishable* key.
 
 ## 2. Run locally
 ```bash
@@ -30,10 +31,19 @@ Edit `src/config.ts` to set your programme, university and academic year.
 
 Every `git push` redeploys. `vercel.json` makes `/subjects/...` links work on refresh. (On Netlify, `public/_redirects` does the same.)
 
-## Privacy
-The whole site is private: every page requires signing in, the database only returns rows to the owner email
-(set in `public.is_owner()`), and images live in a private bucket shown through 6-hour signed URLs.
-Projects created before this change: run `supabase/migrations-002-private.sql` once in the SQL Editor.
+## Privacy & accounts
+Every user has their own private notebook: all pages require signing in, the database only returns a user's own rows,
+and images live in a private bucket under `<user id>/...`, shown through 6-hour signed URLs.
+
+Upgrading a project created before multi-user support: run `supabase/migrations-002-private.sql`, then
+`supabase/migrations-003-multi-user.sql` (it assigns all existing notes to the one existing account), and only then
+turn sign-ups on.
+
+### Sign-ups
+- Confirmation emails: Supabase's built-in email sender only delivers to your project's team members and is heavily
+  rate-limited. For other people to sign up, either turn **Confirm email** off (Authentication → Sign In / Providers →
+  Email), or add your own SMTP provider (Authentication → Emails → SMTP Settings; e.g. Resend's free tier).
+- To close sign-ups again, turn off "Allow new users to sign up"; existing users keep working.
 
 ## Free-tier notes
 Supabase pauses free projects after ~1 week with no activity; open the site or the dashboard to wake it.

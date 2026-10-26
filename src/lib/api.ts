@@ -108,7 +108,10 @@ export async function listImages(sessionId: string): Promise<LectureImage[]> {
 export async function uploadImage(subjectSlug: string, sessionId: string, file: File): Promise<LectureImage> {
   const blob = await shrinkImage(file);
   const ext = blob.type === 'image/jpeg' ? 'jpg' : (file.name.split('.').pop() || 'img').toLowerCase();
-  const path = `${subjectSlug}/${sessionId}/${crypto.randomUUID()}.${ext}`;
+  // Storage rules only allow uploads inside the signed-in user's own folder.
+  const userId = (await supabase.auth.getSession()).data.session?.user.id;
+  if (!userId) throw new Error('You need to be signed in to upload images');
+  const path = `${userId}/${subjectSlug}/${sessionId}/${crypto.randomUUID()}.${ext}`;
 
   const up = await supabase.storage.from(BUCKET).upload(path, blob, { contentType: blob.type || file.type });
   if (up.error) throw up.error;
@@ -127,9 +130,11 @@ export async function uploadImage(subjectSlug: string, sessionId: string, file: 
 }
 
 export async function deleteImage(image: LectureImage) {
+  // Remove the file first: for images uploaded before per-user folders, the storage
+  // rule checks the images row, so it has to still exist at this point.
+  await supabase.storage.from(BUCKET).remove([image.path]);
   const { error } = await supabase.from('images').delete().eq('id', image.id);
   if (error) throw error;
-  await supabase.storage.from(BUCKET).remove([image.path]);
 }
 
 export type ActivityItem = {

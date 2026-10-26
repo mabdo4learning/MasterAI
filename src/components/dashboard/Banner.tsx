@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
-import { SITE } from '../../config';
 import { SUBJECTS, type Subject } from '../../subjects';
 import { greeting } from '../../lib/time';
+import { useProfile } from '../../lib/profile';
 import AuthLink from '../AuthLink';
 import Icon from '../Icon';
 
@@ -12,6 +12,8 @@ type Props = {
 };
 
 export default function Banner({ started, total, resume }: Props) {
+  const profile = useProfile();
+  const firstName = profile.name.split(' ')[0];
   const pct = started !== null && total ? Math.round((started / total) * 100) : null;
   const r = 34;
   const circumference = 2 * Math.PI * r;
@@ -20,7 +22,10 @@ export default function Banner({ started, total, resume }: Props) {
     <header className="banner">
       <div className="banner-glow" aria-hidden />
       <div className="banner-top">
-        <span className="banner-eyebrow">{greeting()}</span>
+        <span className="banner-eyebrow">
+          {greeting()}
+          {firstName && `, ${firstName}`}
+        </span>
         <div className="banner-actions">
           <Link to="/calendar" className="btn btn-ghost btn-sm">
             <Icon name="calendarDays" size={15} />
@@ -34,9 +39,9 @@ export default function Banner({ started, total, resume }: Props) {
         <div className="banner-text">
           <h1>My lecture notes</h1>
           <div className="banner-pills">
-            <span>{SITE.programme}</span>
-            <span>{SITE.university}</span>
-            <span>{SITE.academicYear}</span>
+            {[profile.programme, profile.university, profile.academicYear].filter(Boolean).map((p) => (
+              <span key={p}>{p}</span>
+            ))}
           </div>
           {resume ? (
             <Link className="banner-cta" to={`/subjects/${resume.subject.slug}?session=${resume.sessionNumber}`}>
