@@ -1,57 +1,95 @@
 import { useEffect, useState, type CSSProperties } from 'react';
 import { Link } from 'react-router-dom';
-import { SITE } from '../config';
-import { SUBJECTS } from '../subjects';
-import { listSubjectStats, type SubjectStats } from '../lib/api';
-import AuthLink from '../components/AuthLink';
+import { SUBJECTS, findSubject } from '../subjects';
+import { getDashboard, type Dashboard } from '../lib/api';
+import { weekStart } from '../lib/time';
 import Icon from '../components/Icon';
+import { useToast } from '../components/Toast';
+import Banner from '../components/dashboard/Banner';
+import StatTiles from '../components/dashboard/StatTiles';
+import ActivityChart from '../components/dashboard/ActivityChart';
+import SubjectProgress from '../components/dashboard/SubjectProgress';
+import RecentActivity from '../components/dashboard/RecentActivity';
 
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
 
 export default function Home() {
-  const [stats, setStats] = useState<Record<string, SubjectStats> | null>(null);
+  const toast = useToast();
+  const [data, setData] = useState<Dashboard | null>(null);
 
   useEffect(() => {
-    listSubjectStats()
-      .then(setStats)
-      .catch(() => setStats({}));
-  }, []);
+    getDashboard()
+      .then(setData)
+      .catch((e) => toast(`Couldn't load dashboard: ${e.message}`, 'error'));
+  }, [toast]);
 
-  const totals = Object.values(stats ?? {}).reduce(
-    (t, s) => ({ notes: t.notes + s.notes, images: t.images + s.images }),
-    { notes: 0, images: 0 },
-  );
+  const sessions = data?.sessions ?? null;
+  const isStarted = (s: { topic: string; noteCount: number; imageCount: number }) =>
+    !!s.topic.trim() || s.noteCount > 0 || s.imageCount > 0;
+
+  const started = sessions ? sessions.filter(isStarted).length : null;
+  const totalNotes = sessions ? sessions.reduce((n, s) => n + s.noteCount, 0) : null;
+  const totalImages = sessions ? sessions.reduce((n, s) => n + s.imageCount, 0) : null;
+  const activeSubjects = sessions ? new Set(sessions.filter(isStarted).map((s) => s.subjectSlug)).size : null;
+
+  const thisWeek = weekStart(new Date()).getTime();
+  const addedThisWeek = (kind: 'note' | 'image') =>
+    data?.activity.filter((a) => a.kind === kind && new Date(a.createdAt).getTime() >= thisWeek).length ?? 0;
+
+  const latest = data?.recent[0];
+  const latestSubject = latest && findSubject(latest.subjectSlug);
+  const resume = latestSubject ? { subject: latestSubject, sessionNumber: latest.sessionNumber } : null;
 
   return (
-    <div className="page">
-      <header className="home-header">
-        <div className="home-heading">
-          <h1>My lecture notes</h1>
-          <div className="meta-pills">
-            <span className="pill">{SITE.programme}</span>
-            <span className="pill">{SITE.university}</span>
-            <span className="pill">{SITE.academicYear}</span>
-          </div>
-        </div>
-        <AuthLink />
-      </header>
+    <div className="page dashboard">
+      <Banner started={started} total={sessions?.length ?? 0} resume={resume} />
 
-      <div className="summary-strip">
-        <span>
-          <strong>{SUBJECTS.length}</strong> subjects
-        </span>
-        <span className={stats ? '' : 'loading-text'}>
-          <Icon name="note" size={15} /> <strong>{totals.notes}</strong> {totals.notes === 1 ? 'note' : 'notes'}
-        </span>
-        <span className={stats ? '' : 'loading-text'}>
-          <Icon name="image" size={15} /> <strong>{totals.images}</strong> {totals.images === 1 ? 'image' : 'images'}
-        </span>
+      <StatTiles
+        stats={[
+          {
+            label: 'Sessions covered',
+            icon: 'calendar',
+            value: started,
+            detail: `of ${sessions?.length ?? 0} sessions`,
+          },
+          {
+            label: 'Notes',
+            icon: 'note',
+            value: totalNotes,
+            detail: `+${addedThisWeek('note')} this week`,
+          },
+          {
+            label: 'Images',
+            icon: 'image',
+            value: totalImages,
+            detail: `+${addedThisWeek('image')} this week`,
+          },
+          {
+            label: 'Subjects started',
+            icon: 'check',
+            value: activeSubjects,
+            detail: `of ${SUBJECTS.length} subjects`,
+          },
+        ]}
+      />
+
+      <div className="dash-row">
+        <ActivityChart activity={data?.activity ?? null} />
+        <RecentActivity items={data?.recent ?? null} />
+      </div>
+
+      <SubjectProgress sessions={sessions} />
+
+      <div className="section-title">
+        <h2>All subjects</h2>
+        <span className="muted small">{SUBJECTS.length} subjects</span>
       </div>
 
       <main className="subject-grid">
         {SUBJECTS.map((s) => {
-          const st = stats?.[s.slug];
-          const pct = st && st.sessions ? Math.round((st.started / st.sessions) * 100) : 0;
+          const own = sessions?.filter((x) => x.subjectSlug === s.slug);
+          const notes = own?.reduce((n, x) => n + x.noteCount, 0) ?? 0;
+          const images = own?.reduce((n, x) => n + x.imageCount, 0) ?? 0;
           return (
             <Link
               key={s.slug}
@@ -61,31 +99,23 @@ export default function Home() {
             >
               <div className="subject-card-top">
                 <span className="badge">{s.number}</span>
-                {st && (
+                {own && (
                   <span className="card-counts">
-                    <span title={plural(st.notes, 'note')}>
+                    <span title={plural(notes, 'note')}>
                       <Icon name="note" size={14} />
-                      {st.notes}
+                      {notes}
                     </span>
-                    <span title={plural(st.images, 'image')}>
+                    <span title={plural(images, 'image')}>
                       <Icon name="image" size={14} />
-                      {st.images}
+                      {images}
                     </span>
                   </span>
                 )}
               </div>
               <h2>{s.title}</h2>
-              <div className="progress" aria-hidden>
-                <div className="progress-fill" style={{ width: `${pct}%` }} />
-              </div>
-              <div className="subject-card-foot">
-                <span className="muted small">
-                  {st ? `${st.started} of ${st.sessions} sessions` : <span className="skeleton skeleton-text" />}
-                </span>
-                <span className="open-link">
-                  Open sessions <Icon name="arrowRight" size={15} />
-                </span>
-              </div>
+              <span className="open-link">
+                Open sessions <Icon name="arrowRight" size={15} />
+              </span>
             </Link>
           );
         })}

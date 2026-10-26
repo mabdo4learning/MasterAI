@@ -122,21 +122,81 @@ export async function deleteImage(image: LectureImage) {
   await supabase.storage.from(BUCKET).remove([image.path]);
 }
 
-export type SubjectStats = { sessions: number; started: number; notes: number; images: number };
+export type ActivityItem = {
+  kind: 'note' | 'image';
+  id: string;
+  createdAt: string;
+  subjectSlug: string;
+  sessionNumber: number;
+  text: string;
+  url?: string;
+};
 
-/** Per-subject totals for the home page. A session counts as started once it has a topic, note or image. */
-export async function listSubjectStats(): Promise<Record<string, SubjectStats>> {
-  const { data, error } = await supabase.from('sessions').select('subject_slug, topic, notes(count), images(count)');
-  if (error) throw error;
-  const stats: Record<string, SubjectStats> = {};
-  for (const r of data as unknown as (SessionRow & { subject_slug: string })[]) {
-    const s = (stats[r.subject_slug] ??= { sessions: 0, started: 0, notes: 0, images: 0 });
-    const notes = r.notes[0]?.count ?? 0;
-    const images = r.images[0]?.count ?? 0;
-    s.sessions += 1;
-    s.notes += notes;
-    s.images += images;
-    if (r.topic.trim() || notes || images) s.started += 1;
-  }
-  return stats;
+export type DashboardSession = LectureSession & { subjectSlug: string };
+
+export type Dashboard = {
+  sessions: DashboardSession[];
+  recent: ActivityItem[];
+  /** Creation times of notes and images from the last ~9 weeks, for the activity chart. */
+  activity: { kind: 'note' | 'image'; createdAt: string }[];
+};
+
+type JoinedSession = { subject_slug: string; number: number } | null;
+
+export async function getDashboard(): Promise<Dashboard> {
+  const since = new Date(Date.now() - 63 * 86_400_000).toISOString();
+  const [sessions, notes, images, noteTimes, imageTimes] = await Promise.all([
+    supabase.from('sessions').select(`subject_slug, ${SESSION_COLUMNS}`).order('number'),
+    supabase
+      .from('notes')
+      .select('id, body, created_at, session:sessions(subject_slug, number)')
+      .order('created_at', { ascending: false })
+      .limit(6),
+    supabase
+      .from('images')
+      .select('id, path, file_name, created_at, session:sessions(subject_slug, number)')
+      .order('created_at', { ascending: false })
+      .limit(6),
+    supabase.from('notes').select('created_at').gte('created_at', since),
+    supabase.from('images').select('created_at').gte('created_at', since),
+  ]);
+  for (const r of [sessions, notes, images, noteTimes, imageTimes]) if (r.error) throw r.error;
+
+  const recent: ActivityItem[] = [
+    ...(notes.data as unknown as { id: string; body: string; created_at: string; session: JoinedSession }[]).map(
+      (n) => ({
+        kind: 'note' as const,
+        id: n.id,
+        createdAt: n.created_at,
+        subjectSlug: n.session?.subject_slug ?? '',
+        sessionNumber: n.session?.number ?? 0,
+        text: n.body,
+      }),
+    ),
+    ...(
+      images.data as unknown as { id: string; path: string; file_name: string; created_at: string; session: JoinedSession }[]
+    ).map((i) => ({
+      kind: 'image' as const,
+      id: i.id,
+      createdAt: i.created_at,
+      subjectSlug: i.session?.subject_slug ?? '',
+      sessionNumber: i.session?.number ?? 0,
+      text: i.file_name,
+      url: publicUrl(i.path),
+    })),
+  ]
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+    .slice(0, 6);
+
+  return {
+    sessions: (sessions.data as unknown as (SessionRow & { subject_slug: string })[]).map((r) => ({
+      ...toSession(r),
+      subjectSlug: r.subject_slug,
+    })),
+    recent,
+    activity: [
+      ...noteTimes.data!.map((r) => ({ kind: 'note' as const, createdAt: r.created_at })),
+      ...imageTimes.data!.map((r) => ({ kind: 'image' as const, createdAt: r.created_at })),
+    ],
+  };
 }

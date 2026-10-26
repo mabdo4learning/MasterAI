@@ -1,0 +1,84 @@
+import { Link } from 'react-router-dom';
+import { SITE } from '../../config';
+import { SUBJECTS, type Subject } from '../../subjects';
+import { greeting } from '../../lib/time';
+import AuthLink from '../AuthLink';
+import Icon from '../Icon';
+
+type Props = {
+  started: number | null;
+  total: number;
+  resume: { subject: Subject; sessionNumber: number } | null;
+};
+
+export default function Banner({ started, total, resume }: Props) {
+  const pct = started !== null && total ? Math.round((started / total) * 100) : null;
+  const r = 34;
+  const circumference = 2 * Math.PI * r;
+
+  return (
+    <header className="banner">
+      <div className="banner-glow" aria-hidden />
+      <div className="banner-top">
+        <span className="banner-eyebrow">{greeting()}</span>
+        <AuthLink />
+      </div>
+
+      <div className="banner-body">
+        <div className="banner-text">
+          <h1>My lecture notes</h1>
+          <div className="banner-pills">
+            <span>{SITE.programme}</span>
+            <span>{SITE.university}</span>
+            <span>{SITE.academicYear}</span>
+          </div>
+          {resume ? (
+            <Link className="banner-cta" to={`/subjects/${resume.subject.slug}?session=${resume.sessionNumber}`}>
+              <span className="banner-cta-label">Continue where you left off</span>
+              <span className="banner-cta-target">
+                <span className="mini-badge" style={{ background: resume.subject.color }}>
+                  {resume.subject.number}
+                </span>
+                {resume.subject.title} · Session {resume.sessionNumber}
+                <Icon name="arrowRight" size={16} />
+              </span>
+            </Link>
+          ) : (
+            <Link className="banner-cta" to={`/subjects/${SUBJECTS[0].slug}`}>
+              <span className="banner-cta-label">Get started</span>
+              <span className="banner-cta-target">
+                Open your first subject <Icon name="arrowRight" size={16} />
+              </span>
+            </Link>
+          )}
+        </div>
+
+        <div className="banner-ring" role="img" aria-label={pct === null ? 'Loading progress' : `${pct}% of sessions covered`}>
+          <svg viewBox="0 0 80 80" width="132" height="132">
+            <circle cx="40" cy="40" r={r} className="ring-track" />
+            <circle
+              cx="40"
+              cy="40"
+              r={r}
+              className="ring-fill"
+              strokeDasharray={circumference}
+              strokeDashoffset={circumference * (1 - (pct ?? 0) / 100)}
+            />
+          </svg>
+          <div className="ring-label">
+            <strong>{pct === null ? '–' : `${pct}%`}</strong>
+            <span>
+              {started ?? '–'} of {total || '–'} sessions
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <div className="banner-stripe" aria-hidden>
+        {SUBJECTS.map((s) => (
+          <span key={s.slug} style={{ background: s.color }} />
+        ))}
+      </div>
+    </header>
+  );
+}
