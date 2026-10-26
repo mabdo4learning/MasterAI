@@ -1,0 +1,130 @@
+import { useEffect, useState, type CSSProperties } from 'react';
+import { Link, useParams, useSearchParams } from 'react-router-dom';
+import { findSubject } from '../subjects';
+import { addSession, listSessions, type LectureSession } from '../lib/api';
+import { useCanEdit } from '../lib/auth';
+import AuthLink from '../components/AuthLink';
+import SessionEditor from '../components/SessionEditor';
+import NotFound from './NotFound';
+
+const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
+
+export default function SubjectPage() {
+  const { slug } = useParams();
+  const subject = findSubject(slug);
+  const canEdit = useCanEdit();
+  const [params, setParams] = useSearchParams();
+  const [sessions, setSessions] = useState<LectureSession[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [adding, setAdding] = useState(false);
+
+  useEffect(() => {
+    if (!subject) return;
+    setSessions(null);
+    listSessions(subject.slug)
+      .then(setSessions)
+      .catch((e) => setError(e.message));
+  }, [subject]);
+
+  useEffect(() => {
+    if (subject) document.title = `${subject.title} · My lecture notes`;
+    return () => {
+      document.title = 'My lecture notes';
+    };
+  }, [subject]);
+
+  if (!subject) return <NotFound />;
+
+  const selectedNumber = Number(params.get('session')) || sessions?.[0]?.number;
+  const selected = sessions?.find((s) => s.number === selectedNumber) ?? sessions?.[0];
+  const select = (n: number) => setParams({ session: String(n) }, { replace: true });
+
+  const patchSession = (id: string, patch: Partial<LectureSession>) =>
+    setSessions((list) => list?.map((s) => (s.id === id ? { ...s, ...patch } : s)) ?? null);
+
+  const onAddSession = async () => {
+    if (!sessions) return;
+    setAdding(true);
+    try {
+      const next = Math.max(0, ...sessions.map((s) => s.number)) + 1;
+      const created = await addSession(subject.slug, next);
+      setSessions([...sessions, created]);
+      select(created.number);
+    } catch (e) {
+      alert((e as Error).message);
+    } finally {
+      setAdding(false);
+    }
+  };
+
+  const totals = (sessions ?? []).reduce(
+    (t, s) => ({ notes: t.notes + s.noteCount, images: t.images + s.imageCount }),
+    { notes: 0, images: 0 },
+  );
+
+  return (
+    <div className="page subject-page" style={{ '--accent': subject.color } as CSSProperties}>
+      <header className="topbar">
+        <Link to="/" className="btn btn-ghost btn-sm back">
+          ← All subjects
+        </Link>
+        <div className="topbar-title">
+          <span className="badge" style={{ background: subject.color }}>
+            {subject.number}
+          </span>
+          <div>
+            <h1>{subject.title}</h1>
+            <p className="muted small">
+              {plural(sessions?.length ?? 0, 'session')} · {plural(totals.notes, 'note')} ·{' '}
+              {plural(totals.images, 'image')}
+            </p>
+          </div>
+        </div>
+        <AuthLink />
+      </header>
+
+      {error && <p className="error card">{error}</p>}
+
+      <div className="subject-layout">
+        <aside className="session-list">
+          {sessions === null && !error && <p className="muted small pad">Loading…</p>}
+          {sessions?.map((s) => (
+            <button
+              key={s.id}
+              className={`session-item${s.id === selected?.id ? ' active' : ''}`}
+              onClick={() => select(s.number)}
+            >
+              <strong>Session {s.number}</strong>
+              <span className="session-topic">{s.topic || 'No topic yet'}</span>
+              <span className="session-counts">
+                {plural(s.noteCount, 'note')} · {plural(s.imageCount, 'image')}
+              </span>
+            </button>
+          ))}
+          {canEdit && sessions && (
+            <button className="session-item add-session" onClick={onAddSession} disabled={adding}>
+              {adding ? 'Adding…' : '+ Add session'}
+            </button>
+          )}
+        </aside>
+
+        <main className="session-main">
+          {selected && (
+            <SessionEditor
+              key={selected.id}
+              subjectSlug={subject.slug}
+              session={selected}
+              canEdit={canEdit}
+              onPatch={(patch) => patchSession(selected.id, patch)}
+            />
+          )}
+          {sessions?.length === 0 && (
+            <div className="card">
+              <p className="muted">No sessions yet.{canEdit ? ' Use “Add session” to create one.' : ''}</p>
+            </div>
+          )}
+        </main>
+      </div>
+    </div>
+  );
+}
