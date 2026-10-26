@@ -21,7 +21,13 @@ export default function Banner({ started, total, resume }: Props) {
       <div className="banner-glow" aria-hidden />
       <div className="banner-top">
         <span className="banner-eyebrow">{greeting()}</span>
-        <AuthLink />
+        <div className="banner-actions">
+          <Link to="/calendar" className="btn btn-ghost btn-sm">
+            <Icon name="calendarDays" size={15} />
+            Calendar
+          </Link>
+          <AuthLink />
+        </div>
       </div>
 
       <div className="banner-body">

@@ -103,18 +103,15 @@ export default function SubjectPage() {
               </p>
             </div>
           </div>
+          <Link to="/calendar" className="btn btn-ghost btn-sm" aria-label="Calendar" title="Calendar">
+            <Icon name="calendarDays" size={16} />
+          </Link>
           <AuthLink />
         </div>
       </header>
 
       <div className="page subject-body">
         {error && <p className="error card">{error}</p>}
-
-        {!canEdit && (
-          <p className="readonly-hint">
-            <Icon name="lock" size={14} /> Read-only view. Sign in to add notes and images.
-          </p>
-        )}
 
         <div className="subject-layout">
           <aside className="session-list" aria-label="Sessions">

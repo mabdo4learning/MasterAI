@@ -36,8 +36,7 @@ as $$
   select coalesce(auth.jwt() ->> 'email', '') = 'YOUR_EMAIL@example.com'
 $$;
 
--- Row level security: everyone can read, only the owner can write.
--- For fully private notes, change "using (true)" to "using (public.is_owner())".
+-- Row level security: only the owner can read or write (the policies below are FOR ALL).
 alter table public.sessions enable row level security;
 alter table public.notes    enable row level security;
 alter table public.images   enable row level security;
@@ -49,22 +48,19 @@ drop policy if exists "owner writes notes" on public.notes;
 drop policy if exists "read images" on public.images;
 drop policy if exists "owner writes images" on public.images;
 
-create policy "read sessions" on public.sessions for select using (true);
 create policy "owner writes sessions" on public.sessions for all to authenticated
   using (public.is_owner()) with check (public.is_owner());
 
-create policy "read notes" on public.notes for select using (true);
 create policy "owner writes notes" on public.notes for all to authenticated
   using (public.is_owner()) with check (public.is_owner());
 
-create policy "read images" on public.images for select using (true);
 create policy "owner writes images" on public.images for all to authenticated
   using (public.is_owner()) with check (public.is_owner());
 
--- Image storage bucket (public URLs for viewing, owner-only upload/delete).
+-- Private image bucket: the app shows images through signed URLs.
 insert into storage.buckets (id, name, public)
-values ('lecture-images', 'lecture-images', true)
-on conflict (id) do nothing;
+values ('lecture-images', 'lecture-images', false)
+on conflict (id) do update set public = false;
 
 drop policy if exists "owner reads lecture images" on storage.objects;
 drop policy if exists "owner uploads lecture images" on storage.objects;

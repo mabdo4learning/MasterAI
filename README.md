@@ -31,9 +31,9 @@ Edit `src/config.ts` to set your programme, university and academic year.
 Every `git push` redeploys. `vercel.json` makes `/subjects/...` links work on refresh. (On Netlify, `public/_redirects` does the same.)
 
 ## Privacy
-Visitors can read but not edit; writes are rejected by the database unless you're signed in as the owner email.
-To make notes private, in `schema.sql` change the three `using (true)` read policies to `using (public.is_owner())`,
-re-run it, and make the `lecture-images` bucket private (then switch `getPublicUrl` to `createSignedUrl` in `src/lib/api.ts`).
+The whole site is private: every page requires signing in, the database only returns rows to the owner email
+(set in `public.is_owner()`), and images live in a private bucket shown through 6-hour signed URLs.
+Projects created before this change: run `supabase/migrations-002-private.sql` once in the SQL Editor.
 
 ## Free-tier notes
 Supabase pauses free projects after ~1 week with no activity; open the site or the dashboard to wake it.

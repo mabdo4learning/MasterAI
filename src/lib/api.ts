@@ -84,7 +84,15 @@ export async function deleteNote(id: string) {
   if (error) throw error;
 }
 
-const publicUrl = (path: string) => supabase.storage.from(BUCKET).getPublicUrl(path).data.publicUrl;
+// The bucket is private, so images are shown through short-lived signed URLs.
+const SIGNED_URL_TTL = 60 * 60 * 6;
+
+async function signedUrls(paths: string[]): Promise<Record<string, string>> {
+  if (paths.length === 0) return {};
+  const { data, error } = await supabase.storage.from(BUCKET).createSignedUrls(paths, SIGNED_URL_TTL);
+  if (error) throw error;
+  return Object.fromEntries(data.filter((d) => d.path && d.signedUrl).map((d) => [d.path!, d.signedUrl!]));
+}
 
 export async function listImages(sessionId: string): Promise<LectureImage[]> {
   const { data, error } = await supabase
@@ -93,7 +101,8 @@ export async function listImages(sessionId: string): Promise<LectureImage[]> {
     .eq('session_id', sessionId)
     .order('created_at');
   if (error) throw error;
-  return data.map((r) => ({ id: r.id, path: r.path, fileName: r.file_name, url: publicUrl(r.path) }));
+  const urls = await signedUrls(data.map((r) => r.path));
+  return data.map((r) => ({ id: r.id, path: r.path, fileName: r.file_name, url: urls[r.path] ?? '' }));
 }
 
 export async function uploadImage(subjectSlug: string, sessionId: string, file: File): Promise<LectureImage> {
@@ -113,7 +122,8 @@ export async function uploadImage(subjectSlug: string, sessionId: string, file: 
     await supabase.storage.from(BUCKET).remove([path]);
     throw error;
   }
-  return { id: data.id, path: data.path, fileName: data.file_name, url: publicUrl(data.path) };
+  const urls = await signedUrls([data.path]);
+  return { id: data.id, path: data.path, fileName: data.file_name, url: urls[data.path] ?? '' };
 }
 
 export async function deleteImage(image: LectureImage) {
@@ -162,6 +172,10 @@ export async function getDashboard(): Promise<Dashboard> {
   ]);
   for (const r of [sessions, notes, images, noteTimes, imageTimes]) if (r.error) throw r.error;
 
+  type ImageRow = { id: string; path: string; file_name: string; created_at: string; session: JoinedSession };
+  const imageRows = images.data as unknown as ImageRow[];
+  const urls = await signedUrls(imageRows.map((i) => i.path));
+
   const recent: ActivityItem[] = [
     ...(notes.data as unknown as { id: string; body: string; created_at: string; session: JoinedSession }[]).map(
       (n) => ({
@@ -173,16 +187,14 @@ export async function getDashboard(): Promise<Dashboard> {
         text: n.body,
       }),
     ),
-    ...(
-      images.data as unknown as { id: string; path: string; file_name: string; created_at: string; session: JoinedSession }[]
-    ).map((i) => ({
+    ...imageRows.map((i) => ({
       kind: 'image' as const,
       id: i.id,
       createdAt: i.created_at,
       subjectSlug: i.session?.subject_slug ?? '',
       sessionNumber: i.session?.number ?? 0,
       text: i.file_name,
-      url: publicUrl(i.path),
+      url: urls[i.path],
     })),
   ]
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
@@ -199,4 +211,18 @@ export async function getDashboard(): Promise<Dashboard> {
       ...imageTimes.data!.map((r) => ({ kind: 'image' as const, createdAt: r.created_at })),
     ],
   };
+}
+
+/** Every session across all subjects, for the calendar. */
+export async function listAllSessions(): Promise<DashboardSession[]> {
+  const { data, error } = await supabase
+    .from('sessions')
+    .select(`subject_slug, ${SESSION_COLUMNS}`)
+    .order('subject_slug')
+    .order('number');
+  if (error) throw error;
+  return (data as unknown as (SessionRow & { subject_slug: string })[]).map((r) => ({
+    ...toSession(r),
+    subjectSlug: r.subject_slug,
+  }));
 }
