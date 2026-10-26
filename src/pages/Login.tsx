@@ -62,7 +62,12 @@ export default function Login() {
         </label>
 
         <label className="field">
-          <span>Password</span>
+          <span className="label-row">
+            Password
+            <Link to="/forgot-password" state={{ email }} className="label-link">
+              Forgot password?
+            </Link>
+          </span>
           <PasswordInput value={password} onChange={setPassword} autoComplete="current-password" placeholder="Your password" />
         </label>
 

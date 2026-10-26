@@ -5,8 +5,11 @@ import { AuthProvider } from './lib/auth';
 import Home from './pages/Home';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
 import SubjectPage from './pages/SubjectPage';
 import CalendarPage from './pages/CalendarPage';
+import SettingsPage from './pages/SettingsPage';
 import NotFound from './pages/NotFound';
 import { ToastProvider } from './components/Toast';
 import RequireAuth from './components/RequireAuth';
@@ -21,6 +24,9 @@ createRoot(document.getElementById('root')!).render(
             <Route path="/" element={<RequireAuth><Home /></RequireAuth>} />
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<Signup />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
+            <Route path="/settings" element={<RequireAuth><SettingsPage /></RequireAuth>} />
             <Route path="/calendar" element={<RequireAuth><CalendarPage /></RequireAuth>} />
             <Route path="/subjects/:slug" element={<RequireAuth><SubjectPage /></RequireAuth>} />
             <Route path="*" element={<RequireAuth><NotFound /></RequireAuth>} />

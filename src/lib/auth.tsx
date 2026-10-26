@@ -15,7 +15,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSession(data.session);
       setReady(true);
     });
-    const { data } = supabase.auth.onAuthStateChange((_event, s) => setSession(s));
+    const { data } = supabase.auth.onAuthStateChange((event, s) => {
+      setSession(s);
+      // If Supabase sent a reset link back to the Site URL instead of /reset-password
+      // (e.g. the redirect URL isn't allow-listed), still take the user to the reset form.
+      if (event === 'PASSWORD_RECOVERY' && window.location.pathname !== '/reset-password') {
+        window.location.replace('/reset-password');
+      }
+    });
     return () => data.subscription.unsubscribe();
   }, []);
 
