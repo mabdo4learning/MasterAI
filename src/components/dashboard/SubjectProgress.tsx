@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom';
 import { SUBJECTS } from '../../subjects';
 import type { DashboardSession } from '../../lib/api';
 
-const isStarted = (s: DashboardSession) => !!s.topic.trim() || s.noteCount > 0 || s.imageCount > 0;
+const isStarted = (s: DashboardSession) => !!s.topic.trim() || s.noteCount > 0 || s.imageCount > 0 || s.documentCount > 0;
 
 export default function SubjectProgress({ sessions }: { sessions: DashboardSession[] | null }) {
   return (
@@ -10,7 +10,7 @@ export default function SubjectProgress({ sessions }: { sessions: DashboardSessi
       <div className="chart-head">
         <div>
           <h2>Progress by subject</h2>
-          <p className="muted small">Each block is a session — filled once it has a topic, note or image</p>
+          <p className="muted small">Each block is a session — filled once it has a topic, note, image or document</p>
         </div>
       </div>
       <ul className="progress-list">

@@ -20,6 +20,8 @@ const PATHS = {
   devices: 'M3 5h13v10H3zM1 19h17M19 9h4v11h-4z',
   calendarDays: 'M5 5h14v15H5zM5 10h14M9 3v4m6-4v4M8.5 13.5h.01M12 13.5h.01M15.5 13.5h.01M8.5 17h.01M12 17h.01',
   clock: 'M12 7v5l3 2M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0',
+  download: 'M12 4v12m-5-5 5 5 5-5M4 20h16',
+  file: 'M6 3h9l4 4v14H6zM14 3v5h5',
   external: 'M14 4h6v6m0-6-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5',
 };
 

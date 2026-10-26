@@ -24,8 +24,8 @@ export default function Home() {
   }, [toast]);
 
   const sessions = data?.sessions ?? null;
-  const isStarted = (s: { topic: string; noteCount: number; imageCount: number }) =>
-    !!s.topic.trim() || s.noteCount > 0 || s.imageCount > 0;
+  const isStarted = (s: { topic: string; noteCount: number; imageCount: number; documentCount: number }) =>
+    !!s.topic.trim() || s.noteCount > 0 || s.imageCount > 0 || s.documentCount > 0;
 
   const started = sessions ? sessions.filter(isStarted).length : null;
   const totalNotes = sessions ? sessions.reduce((n, s) => n + s.noteCount, 0) : null;

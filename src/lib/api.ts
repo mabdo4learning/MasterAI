@@ -1,5 +1,6 @@
 import { BUCKET, supabase } from './supabase';
 import { shrinkImage } from './resize';
+import { docType, extOf } from './files';
 
 export type LectureSession = {
   id: string;
@@ -8,11 +9,21 @@ export type LectureSession = {
   lectureDate: string | null;
   noteCount: number;
   imageCount: number;
+  documentCount: number;
 };
 
 export type Note = { id: string; body: string; createdAt: string };
 
 export type LectureImage = { id: string; path: string; fileName: string; url: string };
+
+export type LectureDocument = {
+  id: string;
+  path: string;
+  fileName: string;
+  mimeType: string;
+  sizeBytes: number;
+  createdAt: string;
+};
 
 type SessionRow = {
   id: string;
@@ -21,6 +32,7 @@ type SessionRow = {
   lecture_date: string | null;
   notes: { count: number }[];
   images: { count: number }[];
+  documents: { count: number }[];
 };
 
 const toSession = (r: SessionRow): LectureSession => ({
@@ -30,9 +42,10 @@ const toSession = (r: SessionRow): LectureSession => ({
   lectureDate: r.lecture_date,
   noteCount: r.notes[0]?.count ?? 0,
   imageCount: r.images[0]?.count ?? 0,
+  documentCount: r.documents[0]?.count ?? 0,
 });
 
-const SESSION_COLUMNS = 'id, number, topic, lecture_date, notes(count), images(count)';
+const SESSION_COLUMNS = 'id, number, topic, lecture_date, notes(count), images(count), documents(count)';
 
 export async function listSessions(subjectSlug: string): Promise<LectureSession[]> {
   const { data, error } = await supabase
@@ -138,7 +151,7 @@ export async function deleteImage(image: LectureImage) {
 }
 
 export type ActivityItem = {
-  kind: 'note' | 'image';
+  kind: 'note' | 'image' | 'document';
   id: string;
   createdAt: string;
   subjectSlug: string;
@@ -160,7 +173,7 @@ type JoinedSession = { subject_slug: string; number: number } | null;
 
 export async function getDashboard(): Promise<Dashboard> {
   const since = new Date(Date.now() - 63 * 86_400_000).toISOString();
-  const [sessions, notes, images, noteTimes, imageTimes] = await Promise.all([
+  const [sessions, notes, images, documents, noteTimes, imageTimes] = await Promise.all([
     supabase.from('sessions').select(`subject_slug, ${SESSION_COLUMNS}`).order('number'),
     supabase
       .from('notes')
@@ -172,10 +185,15 @@ export async function getDashboard(): Promise<Dashboard> {
       .select('id, path, file_name, created_at, session:sessions(subject_slug, number)')
       .order('created_at', { ascending: false })
       .limit(6),
+    supabase
+      .from('documents')
+      .select('id, file_name, created_at, session:sessions(subject_slug, number)')
+      .order('created_at', { ascending: false })
+      .limit(6),
     supabase.from('notes').select('created_at').gte('created_at', since),
     supabase.from('images').select('created_at').gte('created_at', since),
   ]);
-  for (const r of [sessions, notes, images, noteTimes, imageTimes]) if (r.error) throw r.error;
+  for (const r of [sessions, notes, images, documents, noteTimes, imageTimes]) if (r.error) throw r.error;
 
   type ImageRow = { id: string; path: string; file_name: string; created_at: string; session: JoinedSession };
   const imageRows = images.data as unknown as ImageRow[];
@@ -201,6 +219,16 @@ export async function getDashboard(): Promise<Dashboard> {
       text: i.file_name,
       url: urls[i.path],
     })),
+    ...(documents.data as unknown as { id: string; file_name: string; created_at: string; session: JoinedSession }[]).map(
+      (d) => ({
+        kind: 'document' as const,
+        id: d.id,
+        createdAt: d.created_at,
+        subjectSlug: d.session?.subject_slug ?? '',
+        sessionNumber: d.session?.number ?? 0,
+        text: d.file_name,
+      }),
+    ),
   ]
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
     .slice(0, 6);
@@ -230,4 +258,71 @@ export async function listAllSessions(): Promise<DashboardSession[]> {
     ...toSession(r),
     subjectSlug: r.subject_slug,
   }));
+}
+
+const DOCUMENT_COLUMNS = 'id, path, file_name, mime_type, size_bytes, created_at';
+
+type DocumentRow = {
+  id: string;
+  path: string;
+  file_name: string;
+  mime_type: string;
+  size_bytes: number;
+  created_at: string;
+};
+
+const toDocument = (r: DocumentRow): LectureDocument => ({
+  id: r.id,
+  path: r.path,
+  fileName: r.file_name,
+  mimeType: r.mime_type,
+  sizeBytes: r.size_bytes,
+  createdAt: r.created_at,
+});
+
+export async function listDocuments(sessionId: string): Promise<LectureDocument[]> {
+  const { data, error } = await supabase
+    .from('documents')
+    .select(DOCUMENT_COLUMNS)
+    .eq('session_id', sessionId)
+    .order('created_at');
+  if (error) throw error;
+  return (data as DocumentRow[]).map(toDocument);
+}
+
+export async function uploadDocument(subjectSlug: string, sessionId: string, file: File): Promise<LectureDocument> {
+  const userId = (await supabase.auth.getSession()).data.session?.user.id;
+  if (!userId) throw new Error('You need to be signed in to upload files');
+  // Some systems report Office files with an empty MIME type, so fall back to the extension.
+  const contentType = file.type || docType(file.name).mime;
+  const path = `${userId}/${subjectSlug}/${sessionId}/docs/${crypto.randomUUID()}.${extOf(file.name) || 'bin'}`;
+
+  const up = await supabase.storage.from(BUCKET).upload(path, file, { contentType });
+  if (up.error) throw up.error;
+
+  const { data, error } = await supabase
+    .from('documents')
+    .insert({ session_id: sessionId, path, file_name: file.name, mime_type: contentType, size_bytes: file.size })
+    .select(DOCUMENT_COLUMNS)
+    .single();
+  if (error) {
+    await supabase.storage.from(BUCKET).remove([path]);
+    throw error;
+  }
+  return toDocument(data as DocumentRow);
+}
+
+export async function deleteDocument(doc: LectureDocument) {
+  await supabase.storage.from(BUCKET).remove([doc.path]);
+  const { error } = await supabase.from('documents').delete().eq('id', doc.id);
+  if (error) throw error;
+}
+
+/** A fresh signed link to a document; with `download`, the browser saves it under the original file name. */
+export async function documentUrl(doc: LectureDocument, download = false): Promise<string> {
+  const { data, error } = await supabase.storage
+    .from(BUCKET)
+    .createSignedUrl(doc.path, SIGNED_URL_TTL, download ? { download: doc.fileName } : undefined);
+  if (error) throw error;
+  return data.signedUrl;
 }

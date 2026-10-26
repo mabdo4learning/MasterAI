@@ -1,7 +1,7 @@
 -- Lecture notes schema: one private notebook per user.
 -- New project: run this once in Supabase → SQL Editor.
 -- Existing project from before multi-user support: run migrations-002-private.sql and
--- migrations-003-multi-user.sql instead.
+-- migrations-003-multi-user.sql and migrations-004-documents.sql instead.
 
 create table if not exists public.sessions (
   id           uuid primary key default gen_random_uuid(),
@@ -130,3 +130,28 @@ drop trigger if exists on_auth_user_created_sessions on auth.users;
 create trigger on_auth_user_created_sessions
   after insert on auth.users
   for each row execute function public.create_default_sessions();
+
+-- Documents (PDF, PowerPoint, Word, Excel, …) attached to sessions.
+create table if not exists public.documents (
+  id         uuid primary key default gen_random_uuid(),
+  user_id    uuid not null default auth.uid() references auth.users (id) on delete cascade,
+  session_id uuid not null references public.sessions (id) on delete cascade,
+  path       text not null,
+  file_name  text not null,
+  mime_type  text not null default '',
+  size_bytes bigint not null default 0,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists documents_user_idx    on public.documents (user_id);
+create index if not exists documents_session_idx on public.documents (session_id, created_at);
+
+alter table public.documents enable row level security;
+
+drop policy if exists "own documents" on public.documents;
+create policy "own documents" on public.documents for all to authenticated
+  using (user_id = (select auth.uid()))
+  with check (
+    user_id = (select auth.uid())
+    and exists (select 1 from public.sessions s where s.id = session_id and s.user_id = (select auth.uid()))
+  );

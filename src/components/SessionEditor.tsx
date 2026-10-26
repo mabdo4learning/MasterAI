@@ -1,17 +1,24 @@
 import { useEffect, useRef, useState, type ChangeEvent, type DragEvent, type KeyboardEvent } from 'react';
 import {
   addNote,
+  deleteDocument,
   deleteImage,
   deleteNote,
+  documentUrl,
+  listDocuments,
   listImages,
   listNotes,
   updateSession,
+  uploadDocument,
   uploadImage,
+  type LectureDocument,
   type LectureImage,
   type LectureSession,
   type Note,
 } from '../lib/api';
+import { ACCEPT, MAX_UPLOAD_BYTES, docType, fileKind, formatBytes } from '../lib/files';
 import ConfirmButton from './ConfirmButton';
+import DocumentViewer from './DocumentViewer';
 import Icon from './Icon';
 import Lightbox from './Lightbox';
 import { useToast } from './Toast';
@@ -35,7 +42,8 @@ const formatStamp = (iso: string) =>
 const formatDate = (d: string) =>
   new Date(`${d}T00:00:00`).toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
 
-const isImage = (f: File) => f.type.startsWith('image/');
+const formatShortDate = (iso: string) =>
+  new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
 
 export default function SessionEditor({ subjectSlug, session, total, canEdit, onPatch, onPrev, onNext }: Props) {
   const toast = useToast();
@@ -46,9 +54,12 @@ export default function SessionEditor({ subjectSlug, session, total, canEdit, on
   const [images, setImages] = useState<LectureImage[] | null>(null);
   const [draft, setDraft] = useState('');
   const [addingNote, setAddingNote] = useState(false);
+  const [documents, setDocuments] = useState<LectureDocument[] | null>(null);
   const [pending, setPending] = useState<PendingUpload[]>([]);
+  const [pendingDocs, setPendingDocs] = useState<{ key: string; name: string; size: number }[]>([]);
   const [dragging, setDragging] = useState(false);
   const [viewing, setViewing] = useState<number | null>(null);
+  const [viewingDoc, setViewingDoc] = useState<LectureDocument | null>(null);
 
   const unsaved = useRef<{ topic?: string; lecture_date?: string | null }>({});
   const timer = useRef<number | undefined>(undefined);
@@ -58,6 +69,7 @@ export default function SessionEditor({ subjectSlug, session, total, canEdit, on
   useEffect(() => {
     listNotes(session.id).then(setNotes).catch((e) => toast(e.message, 'error'));
     listImages(session.id).then(setImages).catch((e) => toast(e.message, 'error'));
+    listDocuments(session.id).then(setDocuments).catch((e) => toast(e.message, 'error'));
   }, [session.id, toast]);
 
   // Keep the counts in the session list in sync.
@@ -67,6 +79,9 @@ export default function SessionEditor({ subjectSlug, session, total, canEdit, on
   useEffect(() => {
     if (images) onPatch({ imageCount: images.length });
   }, [images?.length]);
+  useEffect(() => {
+    if (documents) onPatch({ documentCount: documents.length });
+  }, [documents?.length]);
 
   const flush = async () => {
     window.clearTimeout(timer.current);
@@ -147,29 +162,52 @@ export default function SessionEditor({ subjectSlug, session, total, canEdit, on
   };
 
   const uploadFiles = async (files: File[]) => {
-    const imgs = files.filter(isImage);
-    if (imgs.length < files.length) toast('Only image files can be uploaded', 'error');
-    if (imgs.length === 0) return;
+    const unsupported = files.filter((f) => !fileKind(f));
+    const tooBig = files.filter((f) => fileKind(f) === 'document' && f.size > MAX_UPLOAD_BYTES);
+    if (unsupported.length) toast(`Can't upload ${unsupported.map((f) => f.name).join(', ')} — unsupported file type`, 'error');
+    if (tooBig.length) toast(`${tooBig.map((f) => f.name).join(', ')} is over the 50 MB limit`, 'error');
 
-    const queue = imgs.map((file) => ({
+    const imgs = files.filter((f) => fileKind(f) === 'image');
+    const docs = files.filter((f) => fileKind(f) === 'document' && f.size <= MAX_UPLOAD_BYTES);
+    if (imgs.length === 0 && docs.length === 0) return;
+
+    const imageQueue = imgs.map((file) => ({
       file,
       item: { key: crypto.randomUUID(), name: file.name, preview: URL.createObjectURL(file) },
     }));
-    setPending((p) => [...p, ...queue.map((q) => q.item)]);
+    const docQueue = docs.map((file) => ({ file, item: { key: crypto.randomUUID(), name: file.name, size: file.size } }));
+    setPending((p) => [...p, ...imageQueue.map((q) => q.item)]);
+    setPendingDocs((p) => [...p, ...docQueue.map((q) => q.item)]);
 
-    let ok = 0;
-    for (const { file, item } of queue) {
+    let imagesDone = 0;
+    let docsDone = 0;
+    for (const { file, item } of imageQueue) {
       try {
         const img = await uploadImage(subjectSlug, session.id, file);
         setImages((list) => [...(list ?? []), img]);
-        ok += 1;
+        imagesDone += 1;
       } catch (err) {
         toast(`${file.name}: ${(err as Error).message}`, 'error');
       }
       setPending((p) => p.filter((x) => x.key !== item.key));
       URL.revokeObjectURL(item.preview);
     }
-    if (ok) toast(ok === 1 ? 'Image uploaded' : `${ok} images uploaded`);
+    for (const { file, item } of docQueue) {
+      try {
+        const doc = await uploadDocument(subjectSlug, session.id, file);
+        setDocuments((list) => [...(list ?? []), doc]);
+        docsDone += 1;
+      } catch (err) {
+        toast(`${file.name}: ${(err as Error).message}`, 'error');
+      }
+      setPendingDocs((p) => p.filter((x) => x.key !== item.key));
+    }
+
+    const parts = [
+      imagesDone && (imagesDone === 1 ? '1 image' : `${imagesDone} images`),
+      docsDone && (docsDone === 1 ? '1 document' : `${docsDone} documents`),
+    ].filter(Boolean);
+    if (parts.length) toast(`${parts.join(' and ')} uploaded`);
   };
 
   const onFiles = (e: ChangeEvent<HTMLInputElement>) => {
@@ -178,11 +216,11 @@ export default function SessionEditor({ subjectSlug, session, total, canEdit, on
     uploadFiles(files);
   };
 
-  // Paste screenshots straight from the clipboard.
+  // Paste screenshots (or files copied in Finder/Explorer) straight from the clipboard.
   useEffect(() => {
     if (!canEdit) return;
     const onPaste = (e: ClipboardEvent) => {
-      const files = Array.from(e.clipboardData?.files ?? []).filter(isImage);
+      const files = Array.from(e.clipboardData?.files ?? []).filter((f) => fileKind(f));
       if (files.length === 0) return;
       e.preventDefault();
       const stamp = new Date().toISOString().slice(0, 19).replace(/[T:]/g, '-');
@@ -224,7 +262,27 @@ export default function SessionEditor({ subjectSlug, session, total, canEdit, on
     }
   };
 
+  const removeDocument = async (doc: LectureDocument) => {
+    try {
+      await deleteDocument(doc);
+      setDocuments((list) => list?.filter((d) => d.id !== doc.id) ?? null);
+      toast('Document removed');
+    } catch (e) {
+      toast((e as Error).message, 'error');
+    }
+  };
+
+  const download = async (doc: LectureDocument) => {
+    try {
+      window.location.href = await documentUrl(doc, true);
+    } catch (e) {
+      toast((e as Error).message, 'error');
+    }
+  };
+
   const imageCount = (images?.length ?? 0) + pending.length;
+  const docCount = (documents?.length ?? 0) + pendingDocs.length;
+  const fileCount = imageCount + docCount;
 
   return (
     <div className="session-editor">
@@ -338,14 +396,14 @@ export default function SessionEditor({ subjectSlug, session, total, canEdit, on
       <section className={`card images-section${dragging ? ' dragging' : ''}`} {...dragProps}>
         <div className="section-head">
           <h2>
-            <Icon name="image" /> Images {imageCount > 0 && <span className="count">{imageCount}</span>}
+            <Icon name="image" /> Images & documents {fileCount > 0 && <span className="count">{fileCount}</span>}
           </h2>
           {canEdit && (
             <>
-              <input ref={fileInput} type="file" accept="image/*" multiple hidden onChange={onFiles} />
-              <button className="btn btn-outline btn-sm" onClick={() => fileInput.current?.click()}>
+              <input ref={fileInput} type="file" accept={ACCEPT} multiple hidden onChange={onFiles} />
+              <button className="btn btn-outline btn-sm" onClick={() => fileInput.current?.click()} aria-label="Upload files">
                 <Icon name="upload" size={15} />
-                Upload images
+                <span className="hide-mobile">Upload files</span>
               </button>
             </>
           )}
@@ -357,8 +415,8 @@ export default function SessionEditor({ subjectSlug, session, total, canEdit, on
               <div key={i} className="skeleton-block thumb-skeleton" />
             ))}
           </div>
-        ) : imageCount === 0 && !canEdit ? (
-          <p className="empty-line">No images yet.</p>
+        ) : fileCount === 0 && documents !== null && !canEdit ? (
+          <p className="empty-line">No images or documents yet.</p>
         ) : (
           imageCount > 0 && (
             <ul className="image-grid">
@@ -390,18 +448,64 @@ export default function SessionEditor({ subjectSlug, session, total, canEdit, on
           )
         )}
 
+        {docCount > 0 && (
+          <ul className="doc-list">
+            {documents?.map((doc) => {
+              const type = docType(doc.fileName);
+              return (
+                <li key={doc.id} className="doc-row">
+                  <button className="doc-main" onClick={() => setViewingDoc(doc)} title={`Open ${doc.fileName}`}>
+                    <span className="doc-badge" style={{ background: type.color }}>
+                      {type.label}
+                    </span>
+                    <span className="doc-text">
+                      <span className="doc-name">{doc.fileName}</span>
+                      <span className="doc-meta">
+                        {formatBytes(doc.sizeBytes)} · {formatShortDate(doc.createdAt)}
+                      </span>
+                    </span>
+                  </button>
+                  <button className="icon-btn" onClick={() => download(doc)} aria-label={`Download ${doc.fileName}`} title="Download">
+                    <Icon name="download" size={16} />
+                  </button>
+                  {canEdit && <ConfirmButton label={`Remove ${doc.fileName}`} onConfirm={() => removeDocument(doc)} />}
+                </li>
+              );
+            })}
+            {pendingDocs.map((p) => {
+              const type = docType(p.name);
+              return (
+                <li key={p.key} className="doc-row uploading">
+                  <span className="doc-main">
+                    <span className="doc-badge" style={{ background: type.color }}>
+                      {type.label}
+                    </span>
+                    <span className="doc-text">
+                      <span className="doc-name">{p.name}</span>
+                      <span className="doc-meta">Uploading · {formatBytes(p.size)}</span>
+                    </span>
+                  </span>
+                  <span className="doc-spinner" aria-label="Uploading" />
+                </li>
+              );
+            })}
+          </ul>
+        )}
+
         {canEdit && (
           <button
             type="button"
-            className={`dropzone${imageCount > 0 ? ' compact' : ''}`}
+            className={`dropzone${fileCount > 0 ? ' compact' : ''}`}
             onClick={() => fileInput.current?.click()}
           >
-            <Icon name="upload" size={imageCount > 0 ? 16 : 22} />
+            <Icon name="upload" size={fileCount > 0 ? 16 : 22} />
             <span>
-              <strong>Choose images</strong>
+              <strong>Choose files</strong>
               <span className="hide-mobile"> or drag them here</span>
             </span>
-            <span className="muted small hide-mobile">You can also paste screenshots with ⌘V</span>
+            <span className="muted small">
+              Images, PDF, PowerPoint, Word, Excel · <span className="nowrap">up to 50 MB</span>
+            </span>
           </button>
         )}
 
@@ -416,6 +520,7 @@ export default function SessionEditor({ subjectSlug, session, total, canEdit, on
       {viewing !== null && images && images[viewing] && (
         <Lightbox images={images} index={viewing} onChange={setViewing} onClose={() => setViewing(null)} />
       )}
+      {viewingDoc && <DocumentViewer doc={viewingDoc} onClose={() => setViewingDoc(null)} onDownload={() => download(viewingDoc)} />}
     </div>
   );
 }

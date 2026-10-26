@@ -72,8 +72,8 @@ export default function SubjectPage() {
   };
 
   const totals = (sessions ?? []).reduce(
-    (t, s) => ({ notes: t.notes + s.noteCount, images: t.images + s.imageCount }),
-    { notes: 0, images: 0 },
+    (t, s) => ({ notes: t.notes + s.noteCount, images: t.images + s.imageCount, documents: t.documents + s.documentCount }),
+    { notes: 0, images: 0, documents: 0 },
   );
 
   const prev = sessions && selectedIndex > 0 ? sessions[selectedIndex - 1] : undefined;
@@ -96,6 +96,7 @@ export default function SubjectPage() {
                   <>
                     {plural(sessions.length, 'session')} · {plural(totals.notes, 'note')} ·{' '}
                     {plural(totals.images, 'image')}
+                    {totals.documents > 0 && ` · ${plural(totals.documents, 'document')}`}
                   </>
                 ) : (
                   <span className="skeleton skeleton-text" />
@@ -119,7 +120,7 @@ export default function SubjectPage() {
               !error &&
               Array.from({ length: 6 }, (_, i) => <div key={i} className="session-item skeleton-block" />)}
             {sessions?.map((s) => {
-              const filled = s.noteCount + s.imageCount > 0;
+              const filled = s.noteCount + s.imageCount + s.documentCount > 0;
               return (
                 <button
                   key={s.id}
@@ -135,6 +136,7 @@ export default function SubjectPage() {
                   <span className="session-counts">
                     {filled && <span className="filled-dot" aria-hidden />}
                     {plural(s.noteCount, 'note')} · {plural(s.imageCount, 'image')}
+                    {s.documentCount > 0 && ` · ${s.documentCount} doc${s.documentCount === 1 ? '' : 's'}`}
                   </span>
                 </button>
               );
