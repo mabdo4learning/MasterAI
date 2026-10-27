@@ -44,7 +44,7 @@ export default function SubjectProgress({ sessions }: { sessions: DashboardSessi
                           }`}
                           style={
                             pct > 0
-                              ? { background: `linear-gradient(90deg, ${subject.color} ${pct}%, #eceef1 ${pct}%)` }
+                              ? { background: `linear-gradient(90deg, ${subject.color} ${pct}%, var(--track) ${pct}%)` }
                               : undefined
                           }
                         />

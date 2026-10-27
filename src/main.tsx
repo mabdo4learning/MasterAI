@@ -16,7 +16,12 @@ import SearchHotkey from './components/SearchHotkey';
 import NotFound from './pages/NotFound';
 import { ToastProvider } from './components/Toast';
 import RequireAuth from './components/RequireAuth';
+import { initTheme } from './lib/theme';
+import { initInstall } from './lib/install';
 import './styles.css';
+
+initTheme();
+initInstall();
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

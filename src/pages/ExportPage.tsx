@@ -67,7 +67,7 @@ export default function ExportPage() {
   };
 
   return (
-    <div className="export-page" style={{ '--accent': subject.color } as CSSProperties}>
+    <div className="export-page theme-light" style={{ '--accent': subject.color } as CSSProperties}>
       <header className="topbar no-print">
         <div className="topbar-inner export-toolbar">
           <Link to={`/subjects/${subject.slug}`} className="btn btn-ghost btn-sm back" aria-label="Back to subject">

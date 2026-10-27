@@ -5,7 +5,9 @@ import { useAuth } from '../lib/auth';
 import { initials, useProfile, type Profile } from '../lib/profile';
 import { MIN_PASSWORD, strength } from '../lib/password';
 import AuthLink from '../components/AuthLink';
-import Icon from '../components/Icon';
+import Icon, { type IconName } from '../components/Icon';
+import { useTheme, type ThemeChoice } from '../lib/theme';
+import { useInstall } from '../lib/install';
 import PasswordInput from '../components/PasswordInput';
 import StrengthMeter from '../components/StrengthMeter';
 import { useToast } from '../components/Toast';
@@ -58,6 +60,7 @@ export default function SettingsPage() {
           onSaved={() => toast('Profile saved')}
           onError={(m) => toast(m, 'error')}
         />
+        <AppSettings />
         <PasswordForm onSaved={() => toast('Password changed')} />
 
         <section className="card settings-card">
@@ -250,5 +253,75 @@ function PasswordForm({ onSaved }: { onSaved: () => void }) {
         </button>
       </div>
     </form>
+  );
+}
+
+const THEMES: { value: ThemeChoice; label: string; icon: IconName }[] = [
+  { value: 'system', label: 'Automatic', icon: 'devices' },
+  { value: 'light', label: 'Light', icon: 'sun' },
+  { value: 'dark', label: 'Dark', icon: 'moon' },
+];
+
+function AppSettings() {
+  const [theme, setTheme] = useTheme();
+  const { state, install } = useInstall();
+
+  return (
+    <section className="card settings-card">
+      <div className="settings-head">
+        <h2>
+          <Icon name="phone" /> App
+        </h2>
+        <p className="muted small">Saved on this device only, so your phone and laptop can look different.</p>
+      </div>
+
+      <div className="app-row">
+        <div className="app-row-text">
+          <strong>Appearance</strong>
+          <span className="muted small">Automatic follows your device's light or dark setting.</span>
+        </div>
+        <div className="segmented" role="radiogroup" aria-label="Appearance">
+          {THEMES.map((t) => (
+            <button
+              key={t.value}
+              type="button"
+              role="radio"
+              aria-checked={theme === t.value}
+              className={theme === t.value ? 'active' : undefined}
+              onClick={() => setTheme(t.value)}
+            >
+              <Icon name={t.icon} size={15} /> {t.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="app-row">
+        <div className="app-row-text">
+          <strong>Install as an app</strong>
+          <span className="muted small">
+            {state === 'installed' && 'You are using the installed app.'}
+            {state === 'available' && 'Opens full screen from your home screen or dock, like any other app.'}
+            {state === 'ios' && (
+              <>
+                In Safari, tap <b>Share</b> <Icon name="upload" size={13} /> then <b>Add to Home Screen</b>.
+              </>
+            )}
+            {state === 'manual' &&
+              'Open your browser menu and choose “Install app” or “Add to Home screen”. On iPhone, use Safari.'}
+          </span>
+        </div>
+        {state === 'installed' && (
+          <span className="app-installed">
+            <Icon name="check" size={15} /> Installed
+          </span>
+        )}
+        {state === 'available' && (
+          <button type="button" className="btn btn-sm" onClick={install}>
+            <Icon name="download" size={15} /> Install app
+          </button>
+        )}
+      </div>
+    </section>
   );
 }
