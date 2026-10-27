@@ -10,6 +10,7 @@ import StatTiles from '../components/dashboard/StatTiles';
 import ActivityChart from '../components/dashboard/ActivityChart';
 import SubjectProgress from '../components/dashboard/SubjectProgress';
 import RecentActivity from '../components/dashboard/RecentActivity';
+import UpcomingExams from '../components/dashboard/UpcomingExams';
 
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
 
@@ -72,6 +73,8 @@ export default function Home() {
           },
         ]}
       />
+
+      <UpcomingExams sessions={sessions} />
 
       <div className="dash-row">
         <ActivityChart activity={data?.activity ?? null} />

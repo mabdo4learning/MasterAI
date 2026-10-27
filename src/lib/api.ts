@@ -337,6 +337,52 @@ export async function documentUrl(doc: LectureDocument, download = false): Promi
   return data.signedUrl;
 }
 
+export type ExportSession = {
+  id: string;
+  number: number;
+  topic: string;
+  lectureDate: string | null;
+  notes: Note[];
+  images: LectureImage[];
+  documents: { id: string; fileName: string }[];
+};
+
+/** Everything in one subject, oldest note first, for the printable export. */
+export async function getSubjectExport(subjectSlug: string): Promise<ExportSession[]> {
+  const { data, error } = await supabase
+    .from('sessions')
+    .select(
+      `id, number, topic, lecture_date, notes(${NOTE_COLUMNS}), images(id, path, file_name, created_at), documents(id, file_name, created_at)`,
+    )
+    .eq('subject_slug', subjectSlug)
+    .order('number')
+    .order('created_at', { referencedTable: 'notes' })
+    .order('created_at', { referencedTable: 'images' })
+    .order('created_at', { referencedTable: 'documents' });
+  if (error) throw error;
+
+  type Row = {
+    id: string;
+    number: number;
+    topic: string;
+    lecture_date: string | null;
+    notes: NoteRow[];
+    images: { id: string; path: string; file_name: string }[];
+    documents: { id: string; file_name: string }[];
+  };
+  const rows = data as unknown as Row[];
+  const urls = await signedUrls(rows.flatMap((r) => r.images.map((i) => i.path)));
+  return rows.map((r) => ({
+    id: r.id,
+    number: r.number,
+    topic: r.topic,
+    lectureDate: r.lecture_date,
+    notes: r.notes.map(toNote),
+    images: r.images.map((i) => ({ id: i.id, path: i.path, fileName: i.file_name, url: urls[i.path] ?? '' })),
+    documents: r.documents.map((d) => ({ id: d.id, fileName: d.file_name })),
+  }));
+}
+
 export type SearchHit = {
   kind: 'session' | 'note' | 'image' | 'document';
   id: string;

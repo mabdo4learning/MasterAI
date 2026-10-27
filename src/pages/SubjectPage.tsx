@@ -6,6 +6,7 @@ import { useCanEdit } from '../lib/auth';
 import AuthLink from '../components/AuthLink';
 import Icon from '../components/Icon';
 import SessionEditor from '../components/SessionEditor';
+import ExamBar from '../components/ExamBar';
 import { useToast } from '../components/Toast';
 import NotFound from './NotFound';
 
@@ -113,6 +114,8 @@ export default function SubjectPage() {
 
       <div className="page subject-body">
         {error && <p className="error card">{error}</p>}
+
+        <ExamBar subject={subject} sessions={sessions} canEdit={canEdit} onSelect={select} />
 
         <div className="subject-layout">
           <aside className="session-list" aria-label="Sessions">
