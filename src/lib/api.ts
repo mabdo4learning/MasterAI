@@ -326,3 +326,90 @@ export async function documentUrl(doc: LectureDocument, download = false): Promi
   if (error) throw error;
   return data.signedUrl;
 }
+
+export type SearchHit = {
+  kind: 'session' | 'note' | 'image' | 'document';
+  id: string;
+  subjectSlug: string;
+  sessionNumber: number;
+  /** Topic for sessions, body for notes, file name for images and documents. */
+  text: string;
+  createdAt?: string;
+  lectureDate?: string | null;
+  url?: string;
+};
+
+const SEARCH_LIMIT = 40;
+
+// `%`, `_` and `\` are wildcards in ILIKE, so a search for "50%" must not match everything.
+const likePattern = (term: string) => `%${term.replace(/[\\%_]/g, (c) => `\\${c}`)}%`;
+
+/** Sessions, notes, images and documents containing every term (case-insensitive). */
+export async function search(terms: string[]): Promise<SearchHit[]> {
+  if (terms.length === 0) return [];
+  const where = <Q extends { ilike: (column: string, pattern: string) => Q }>(q: Q, column: string) =>
+    terms.reduce((acc, t) => acc.ilike(column, likePattern(t)), q);
+
+  const [sessions, notes, images, documents] = await Promise.all([
+    where(supabase.from('sessions').select('id, subject_slug, number, topic, lecture_date'), 'topic')
+      .order('subject_slug')
+      .order('number')
+      .limit(SEARCH_LIMIT),
+    where(supabase.from('notes').select('id, body, created_at, session:sessions(subject_slug, number)'), 'body')
+      .order('created_at', { ascending: false })
+      .limit(SEARCH_LIMIT),
+    where(
+      supabase.from('images').select('id, path, file_name, created_at, session:sessions(subject_slug, number)'),
+      'file_name',
+    )
+      .order('created_at', { ascending: false })
+      .limit(SEARCH_LIMIT),
+    where(supabase.from('documents').select('id, file_name, created_at, session:sessions(subject_slug, number)'), 'file_name')
+      .order('created_at', { ascending: false })
+      .limit(SEARCH_LIMIT),
+  ]);
+  for (const r of [sessions, notes, images, documents]) if (r.error) throw r.error;
+
+  type SessionHitRow = { id: string; subject_slug: string; number: number; topic: string; lecture_date: string | null };
+  type NoteHitRow = { id: string; body: string; created_at: string; session: JoinedSession };
+  type FileHitRow = { id: string; path?: string; file_name: string; created_at: string; session: JoinedSession };
+
+  const imageRows = images.data as unknown as FileHitRow[];
+  const urls = await signedUrls(imageRows.map((i) => i.path!));
+  const fromFile =
+    (kind: 'image' | 'document') =>
+    (r: FileHitRow): SearchHit => ({
+      kind,
+      id: r.id,
+      subjectSlug: r.session?.subject_slug ?? '',
+      sessionNumber: r.session?.number ?? 0,
+      text: r.file_name,
+      createdAt: r.created_at,
+      url: r.path ? urls[r.path] : undefined,
+    });
+
+  return [
+    ...(sessions.data as unknown as SessionHitRow[]).map(
+      (s): SearchHit => ({
+        kind: 'session',
+        id: s.id,
+        subjectSlug: s.subject_slug,
+        sessionNumber: s.number,
+        text: s.topic,
+        lectureDate: s.lecture_date,
+      }),
+    ),
+    ...(notes.data as unknown as NoteHitRow[]).map(
+      (n): SearchHit => ({
+        kind: 'note',
+        id: n.id,
+        subjectSlug: n.session?.subject_slug ?? '',
+        sessionNumber: n.session?.number ?? 0,
+        text: n.body,
+        createdAt: n.created_at,
+      }),
+    ),
+    ...imageRows.map(fromFile('image')),
+    ...(documents.data as unknown as FileHitRow[]).map(fromFile('document')),
+  ];
+}

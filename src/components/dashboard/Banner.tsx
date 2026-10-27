@@ -27,9 +27,13 @@ export default function Banner({ started, total, resume }: Props) {
           {firstName && `, ${firstName}`}
         </span>
         <div className="banner-actions">
-          <Link to="/calendar" className="btn btn-ghost btn-sm">
+          <Link to="/search" className="btn btn-ghost btn-sm" aria-label="Search" title="Search (/)">
+            <Icon name="search" size={15} />
+            <span className="hide-mobile">Search</span>
+          </Link>
+          <Link to="/calendar" className="btn btn-ghost btn-sm" aria-label="Calendar">
             <Icon name="calendarDays" size={15} />
-            Calendar
+            <span className="hide-mobile">Calendar</span>
           </Link>
           <AuthLink />
         </div>
