@@ -41,6 +41,7 @@ turn sign-ups on.
 To add document uploads (PDF, PowerPoint, Word, Excel), run `supabase/migrations-004-documents.sql` before deploying.
 To make notes editable, run `supabase/migrations-005-note-edits.sql` before deploying.
 For the session checklist (attended / reviewed), run `supabase/migrations-006-session-checklist.sql` before deploying.
+For the question bank and practice mode, run `supabase/migrations-007-questions.sql` before deploying.
 
 ### Sign-ups
 - Confirmation emails: Supabase's built-in email sender only delivers to your project's team members and is heavily

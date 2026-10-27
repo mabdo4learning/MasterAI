@@ -23,6 +23,7 @@ import ConfirmButton from './ConfirmButton';
 import DocumentViewer from './DocumentViewer';
 import Icon from './Icon';
 import Lightbox from './Lightbox';
+import QuestionBank from './QuestionBank';
 import { useToast } from './Toast';
 
 type Props = {
@@ -543,6 +544,8 @@ export default function SessionEditor({ subjectSlug, session, total, canEdit, on
           </ul>
         )}
       </section>
+
+      <QuestionBank subjectSlug={subjectSlug} sessionId={session.id} canEdit={canEdit} />
 
       <section className={`card images-section${dragging ? ' dragging' : ''}`} {...dragProps}>
         <div className="section-head">

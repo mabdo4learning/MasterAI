@@ -479,3 +479,106 @@ export async function search(terms: string[]): Promise<SearchHit[]> {
     ...(documents.data as unknown as FileHitRow[]).map(fromFile('document')),
   ];
 }
+
+export type QuestionResult = 'right' | 'wrong';
+
+export type Question = {
+  id: string;
+  question: string;
+  answer: string;
+  lastResult: QuestionResult | null;
+  practicedAt: string | null;
+  createdAt: string;
+};
+
+const QUESTION_COLUMNS = 'id, question, answer, last_result, practiced_at, created_at';
+type QuestionRow = {
+  id: string;
+  question: string;
+  answer: string;
+  last_result: QuestionResult | null;
+  practiced_at: string | null;
+  created_at: string;
+};
+const toQuestion = (r: QuestionRow): Question => ({
+  id: r.id,
+  question: r.question,
+  answer: r.answer,
+  lastResult: r.last_result,
+  practicedAt: r.practiced_at,
+  createdAt: r.created_at,
+});
+
+export async function listQuestions(sessionId: string): Promise<Question[]> {
+  const { data, error } = await supabase
+    .from('questions')
+    .select(QUESTION_COLUMNS)
+    .eq('session_id', sessionId)
+    .order('created_at');
+  if (error) throw error;
+  return (data as QuestionRow[]).map(toQuestion);
+}
+
+export async function addQuestion(sessionId: string, question: string, answer: string): Promise<Question> {
+  const { data, error } = await supabase
+    .from('questions')
+    .insert({ session_id: sessionId, question, answer })
+    .select(QUESTION_COLUMNS)
+    .single();
+  if (error) throw error;
+  return toQuestion(data as QuestionRow);
+}
+
+export async function updateQuestion(id: string, patch: { question: string; answer: string }): Promise<Question> {
+  const { data, error } = await supabase.from('questions').update(patch).eq('id', id).select(QUESTION_COLUMNS).single();
+  if (error) throw error;
+  return toQuestion(data as QuestionRow);
+}
+
+export async function deleteQuestion(id: string) {
+  const { error } = await supabase.from('questions').delete().eq('id', id);
+  if (error) throw error;
+}
+
+export type PracticeQuestion = Question & { sessionNumber: number; sessionTopic: string };
+
+/** Every question in one subject, for practice mode. */
+export async function listSubjectQuestions(subjectSlug: string): Promise<PracticeQuestion[]> {
+  const { data, error } = await supabase
+    .from('questions')
+    .select(`${QUESTION_COLUMNS}, session:sessions!inner(number, topic, subject_slug)`)
+    .eq('session.subject_slug', subjectSlug)
+    .order('created_at');
+  if (error) throw error;
+  type Row = QuestionRow & { session: { number: number; topic: string } };
+  return (data as unknown as Row[])
+    .map((r) => ({ ...toQuestion(r), sessionNumber: r.session.number, sessionTopic: r.session.topic }))
+    .sort((a, b) => a.sessionNumber - b.sessionNumber);
+}
+
+/** Remember how the last practice of a question went. */
+export async function recordResult(id: string, result: QuestionResult) {
+  const { error } = await supabase
+    .from('questions')
+    .update({ last_result: result, practiced_at: new Date().toISOString() })
+    .eq('id', id);
+  if (error) throw error;
+}
+
+export type QuestionStats = Record<string, { total: number; missed: number; fresh: number }>;
+
+/** Question counts per subject: all, missed last time, and never practised. */
+export async function getQuestionStats(): Promise<QuestionStats> {
+  const { data, error } = await supabase.from('questions').select('last_result, session:sessions(subject_slug)');
+  if (error) throw error;
+  const stats: QuestionStats = {};
+  for (const r of data as unknown as { last_result: QuestionResult | null; session: { subject_slug: string } | null }[]) {
+    const slug = r.session?.subject_slug;
+    if (!slug) continue;
+    const s = (stats[slug] ??= { total: 0, missed: 0, fresh: 0 });
+    s.total += 1;
+    if (r.last_result === 'wrong') s.missed += 1;
+    if (r.last_result === null) s.fresh += 1;
+  }
+  return stats;
+}

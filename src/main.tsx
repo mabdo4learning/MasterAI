@@ -12,6 +12,7 @@ import CalendarPage from './pages/CalendarPage';
 import SettingsPage from './pages/SettingsPage';
 import SearchPage from './pages/SearchPage';
 import ExportPage from './pages/ExportPage';
+import PracticePage from './pages/PracticePage';
 import SearchHotkey from './components/SearchHotkey';
 import NotFound from './pages/NotFound';
 import { ToastProvider } from './components/Toast';
@@ -40,6 +41,7 @@ createRoot(document.getElementById('root')!).render(
             <Route path="/search" element={<RequireAuth><SearchPage /></RequireAuth>} />
             <Route path="/subjects/:slug" element={<RequireAuth><SubjectPage /></RequireAuth>} />
             <Route path="/subjects/:slug/export" element={<RequireAuth><ExportPage /></RequireAuth>} />
+            <Route path="/subjects/:slug/practice" element={<RequireAuth><PracticePage /></RequireAuth>} />
             <Route path="*" element={<RequireAuth><NotFound /></RequireAuth>} />
           </Routes>
         </BrowserRouter>

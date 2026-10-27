@@ -1,8 +1,8 @@
 -- Lecture notes schema: one private notebook per user.
 -- New project: run this once in Supabase → SQL Editor.
 -- Existing project from before multi-user support: run migrations-002-private.sql and
--- migrations-003-multi-user.sql, migrations-004-documents.sql, migrations-005-note-edits.sql and
--- migrations-006-session-checklist.sql instead.
+-- migrations-003-multi-user.sql, migrations-004-documents.sql, migrations-005-note-edits.sql,
+-- migrations-006-session-checklist.sql and migrations-007-questions.sql instead.
 
 create table if not exists public.sessions (
   id           uuid primary key default gen_random_uuid(),
@@ -178,3 +178,28 @@ drop trigger if exists notes_touch_updated_at on public.notes;
 create trigger notes_touch_updated_at
   before update on public.notes
   for each row execute function public.touch_note_updated_at();
+
+-- Question bank: exam-style questions with answers, practised per subject.
+create table if not exists public.questions (
+  id           uuid primary key default gen_random_uuid(),
+  user_id      uuid not null default auth.uid() references auth.users (id) on delete cascade,
+  session_id   uuid not null references public.sessions (id) on delete cascade,
+  question     text not null,
+  answer       text not null default '',
+  last_result  text check (last_result in ('right', 'wrong')),
+  practiced_at timestamptz,
+  created_at   timestamptz not null default now()
+);
+
+create index if not exists questions_user_idx    on public.questions (user_id);
+create index if not exists questions_session_idx on public.questions (session_id, created_at);
+
+alter table public.questions enable row level security;
+
+drop policy if exists "own questions" on public.questions;
+create policy "own questions" on public.questions for all to authenticated
+  using (user_id = (select auth.uid()))
+  with check (
+    user_id = (select auth.uid())
+    and exists (select 1 from public.sessions s where s.id = session_id and s.user_id = (select auth.uid()))
+  );

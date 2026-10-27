@@ -1,7 +1,7 @@
 import { useEffect, useState, type CSSProperties } from 'react';
 import { Link } from 'react-router-dom';
 import { SUBJECTS, findSubject } from '../subjects';
-import { getDashboard, type Dashboard } from '../lib/api';
+import { getDashboard, type Dashboard, type DashboardSession } from '../lib/api';
 import { weekStart } from '../lib/time';
 import Icon from '../components/Icon';
 import { useToast } from '../components/Toast';
@@ -11,6 +11,7 @@ import ActivityChart from '../components/dashboard/ActivityChart';
 import SubjectProgress from '../components/dashboard/SubjectProgress';
 import RecentActivity from '../components/dashboard/RecentActivity';
 import UpcomingExams from '../components/dashboard/UpcomingExams';
+import WeeklyReview from '../components/dashboard/WeeklyReview';
 
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
 
@@ -25,6 +26,8 @@ export default function Home() {
   }, [toast]);
 
   const sessions = data?.sessions ?? null;
+  const patchSession = (id: string, patch: Partial<DashboardSession>) =>
+    setData((d) => d && { ...d, sessions: d.sessions.map((s) => (s.id === id ? { ...s, ...patch } : s)) });
   const isStarted = (s: { topic: string; noteCount: number; imageCount: number; documentCount: number }) =>
     !!s.topic.trim() || s.noteCount > 0 || s.imageCount > 0 || s.documentCount > 0;
 
@@ -73,6 +76,8 @@ export default function Home() {
           },
         ]}
       />
+
+      <WeeklyReview sessions={sessions} onPatch={patchSession} />
 
       <UpcomingExams sessions={sessions} />
 

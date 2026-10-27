@@ -95,6 +95,10 @@ export default function ExamBar({ subject, sessions, canEdit, onSelect }: Props)
                 {date ? <span className="hide-mobile">Change date</span> : 'Set exam date'}
               </button>
             )}
+            <Link to={`/subjects/${subject.slug}/practice`} className="btn btn-outline btn-sm" title="Practise exam questions">
+              <Icon name="shuffle" size={15} />
+              Practice
+            </Link>
             <Link to={`/subjects/${subject.slug}/export`} className="btn btn-outline btn-sm" title="Export as PDF">
               <Icon name="printer" size={15} />
               <span className="hide-mobile">Export PDF</span>
