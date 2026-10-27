@@ -1,7 +1,7 @@
 -- Lecture notes schema: one private notebook per user.
 -- New project: run this once in Supabase → SQL Editor.
 -- Existing project from before multi-user support: run migrations-002-private.sql and
--- migrations-003-multi-user.sql and migrations-004-documents.sql instead.
+-- migrations-003-multi-user.sql, migrations-004-documents.sql and migrations-005-note-edits.sql instead.
 
 create table if not exists public.sessions (
   id           uuid primary key default gen_random_uuid(),
@@ -19,7 +19,8 @@ create table if not exists public.notes (
   user_id    uuid not null default auth.uid() references auth.users (id) on delete cascade,
   session_id uuid not null references public.sessions (id) on delete cascade,
   body       text not null,
-  created_at timestamptz not null default now()
+  created_at timestamptz not null default now(),
+  updated_at timestamptz
 );
 
 create table if not exists public.images (
@@ -155,3 +156,22 @@ create policy "own documents" on public.documents for all to authenticated
     user_id = (select auth.uid())
     and exists (select 1 from public.sessions s where s.id = session_id and s.user_id = (select auth.uid()))
   );
+
+-- Notes can be edited; the database records when the text last changed.
+create or replace function public.touch_note_updated_at()
+returns trigger
+language plpgsql
+set search_path = public
+as $$
+begin
+  if new.body is distinct from old.body then
+    new.updated_at := now();
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists notes_touch_updated_at on public.notes;
+create trigger notes_touch_updated_at
+  before update on public.notes
+  for each row execute function public.touch_note_updated_at();

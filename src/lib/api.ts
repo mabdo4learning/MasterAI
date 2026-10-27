@@ -12,7 +12,11 @@ export type LectureSession = {
   documentCount: number;
 };
 
-export type Note = { id: string; body: string; createdAt: string };
+export type Note = { id: string; body: string; createdAt: string; updatedAt: string | null };
+
+const NOTE_COLUMNS = 'id, body, created_at, updated_at';
+type NoteRow = { id: string; body: string; created_at: string; updated_at: string | null };
+const toNote = (r: NoteRow): Note => ({ id: r.id, body: r.body, createdAt: r.created_at, updatedAt: r.updated_at });
 
 export type LectureImage = { id: string; path: string; fileName: string; url: string };
 
@@ -75,21 +79,27 @@ export async function updateSession(id: string, patch: { topic?: string; lecture
 export async function listNotes(sessionId: string): Promise<Note[]> {
   const { data, error } = await supabase
     .from('notes')
-    .select('id, body, created_at')
+    .select(NOTE_COLUMNS)
     .eq('session_id', sessionId)
     .order('created_at', { ascending: false });
   if (error) throw error;
-  return data.map((r) => ({ id: r.id, body: r.body, createdAt: r.created_at }));
+  return (data as NoteRow[]).map(toNote);
 }
 
 export async function addNote(sessionId: string, body: string): Promise<Note> {
   const { data, error } = await supabase
     .from('notes')
     .insert({ session_id: sessionId, body })
-    .select('id, body, created_at')
+    .select(NOTE_COLUMNS)
     .single();
   if (error) throw error;
-  return { id: data.id, body: data.body, createdAt: data.created_at };
+  return toNote(data as NoteRow);
+}
+
+export async function updateNote(id: string, body: string): Promise<Note> {
+  const { data, error } = await supabase.from('notes').update({ body }).eq('id', id).select(NOTE_COLUMNS).single();
+  if (error) throw error;
+  return toNote(data as NoteRow);
 }
 
 export async function deleteNote(id: string) {

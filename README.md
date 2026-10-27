@@ -39,6 +39,7 @@ Upgrading a project created before multi-user support: run `supabase/migrations-
 `supabase/migrations-003-multi-user.sql` (it assigns all existing notes to the one existing account), and only then
 turn sign-ups on.
 To add document uploads (PDF, PowerPoint, Word, Excel), run `supabase/migrations-004-documents.sql` before deploying.
+To make notes editable, run `supabase/migrations-005-note-edits.sql` before deploying.
 
 ### Sign-ups
 - Confirmation emails: Supabase's built-in email sender only delivers to your project's team members and is heavily

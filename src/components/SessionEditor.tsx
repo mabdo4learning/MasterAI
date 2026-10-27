@@ -8,6 +8,7 @@ import {
   listDocuments,
   listImages,
   listNotes,
+  updateNote,
   updateSession,
   uploadDocument,
   uploadImage,
@@ -45,6 +46,20 @@ const formatDate = (d: string) =>
 const formatShortDate = (iso: string) =>
   new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
 
+/** Grow a textarea to fit its text, so long notes don't need an inner scrollbar. */
+const fitHeight = (el: HTMLTextAreaElement | null) => {
+  if (!el) return;
+  el.style.height = 'auto';
+  el.style.height = `${el.scrollHeight + 2}px`;
+};
+
+/** Phone cameras name every shot "image.jpg"; give photos a readable, unique name instead. */
+const photoName = (file: File, i: number) => {
+  const stamp = new Date().toISOString().slice(0, 19).replace(/[T:]/g, '-');
+  const ext = file.type === 'image/png' ? 'png' : file.type === 'image/heic' ? 'heic' : 'jpg';
+  return new File([file], `photo-${stamp}${i ? `-${i}` : ''}.${ext}`, { type: file.type || 'image/jpeg' });
+};
+
 export default function SessionEditor({ subjectSlug, session, total, canEdit, onPatch, onPrev, onNext }: Props) {
   const toast = useToast();
   const [topic, setTopic] = useState(session.topic);
@@ -60,10 +75,13 @@ export default function SessionEditor({ subjectSlug, session, total, canEdit, on
   const [dragging, setDragging] = useState(false);
   const [viewing, setViewing] = useState<number | null>(null);
   const [viewingDoc, setViewingDoc] = useState<LectureDocument | null>(null);
+  const [editing, setEditing] = useState<{ id: string; body: string } | null>(null);
+  const [savingEdit, setSavingEdit] = useState(false);
 
   const unsaved = useRef<{ topic?: string; lecture_date?: string | null }>({});
   const timer = useRef<number | undefined>(undefined);
   const fileInput = useRef<HTMLInputElement>(null);
+  const cameraInput = useRef<HTMLInputElement>(null);
   const textarea = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
@@ -120,12 +138,7 @@ export default function SessionEditor({ subjectSlug, session, total, canEdit, on
     queueSave({ lecture_date: value || null });
   };
 
-  const autoGrow = () => {
-    const el = textarea.current;
-    if (!el) return;
-    el.style.height = 'auto';
-    el.style.height = `${el.scrollHeight + 2}px`;
-  };
+  const autoGrow = () => fitHeight(textarea.current);
 
   const submitNote = async () => {
     const body = draft.trim();
@@ -158,6 +171,36 @@ export default function SessionEditor({ subjectSlug, session, total, canEdit, on
       toast('Note deleted');
     } catch (e) {
       toast((e as Error).message, 'error');
+    }
+  };
+
+  const saveEdit = async () => {
+    if (!editing) return;
+    const body = editing.body.trim();
+    const original = notes?.find((n) => n.id === editing.id);
+    if (!body || body === original?.body) {
+      setEditing(null);
+      return;
+    }
+    setSavingEdit(true);
+    try {
+      const note = await updateNote(editing.id, body);
+      setNotes((list) => list?.map((n) => (n.id === note.id ? note : n)) ?? null);
+      setEditing(null);
+      toast('Note updated');
+    } catch (e) {
+      toast((e as Error).message, 'error');
+    } finally {
+      setSavingEdit(false);
+    }
+  };
+
+  const onEditKey = (e: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+      e.preventDefault();
+      saveEdit();
+    } else if (e.key === 'Escape') {
+      setEditing(null);
     }
   };
 
@@ -214,6 +257,12 @@ export default function SessionEditor({ subjectSlug, session, total, canEdit, on
     const files = Array.from(e.target.files ?? []);
     e.target.value = '';
     uploadFiles(files);
+  };
+
+  const onPhotos = (e: ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? []);
+    e.target.value = '';
+    uploadFiles(files.map(photoName));
   };
 
   // Paste screenshots (or files copied in Finder/Explorer) straight from the clipboard.
@@ -380,15 +429,63 @@ export default function SessionEditor({ subjectSlug, session, total, canEdit, on
           <p className="empty-line">No notes yet{canEdit ? ' — your first note will appear here.' : '.'}</p>
         ) : (
           <ul className="note-list">
-            {notes.map((n) => (
-              <li key={n.id} className="note">
-                <div className="note-meta">
-                  <time dateTime={n.createdAt}>{formatStamp(n.createdAt)}</time>
-                  {canEdit && <ConfirmButton label="Delete note" onConfirm={() => removeNote(n)} />}
-                </div>
-                <p className="note-body">{n.body}</p>
-              </li>
-            ))}
+            {notes.map((n) =>
+              editing?.id === n.id ? (
+                <li key={n.id} className="note editing">
+                  <textarea
+                    ref={(el) => fitHeight(el)}
+                    value={editing.body}
+                    autoFocus
+                    aria-label="Edit note"
+                    onFocus={(e) => e.currentTarget.setSelectionRange(e.currentTarget.value.length, e.currentTarget.value.length)}
+                    onChange={(e) => {
+                      setEditing({ id: n.id, body: e.target.value });
+                      fitHeight(e.target);
+                    }}
+                    onKeyDown={onEditKey}
+                  />
+                  <div className="compose-actions">
+                    <span className="muted small hide-mobile">
+                      <kbd>Esc</kbd> to cancel
+                    </span>
+                    <button className="btn btn-ghost" onClick={() => setEditing(null)} disabled={savingEdit}>
+                      Cancel
+                    </button>
+                    <button className="btn" onClick={saveEdit} disabled={savingEdit || !editing.body.trim()}>
+                      <Icon name="check" size={16} />
+                      {savingEdit ? 'Saving…' : 'Save'}
+                    </button>
+                  </div>
+                </li>
+              ) : (
+                <li key={n.id} className="note">
+                  <div className="note-meta">
+                    <span className="note-stamp">
+                      <time dateTime={n.createdAt}>{formatStamp(n.createdAt)}</time>
+                      {n.updatedAt && (
+                        <span className="note-edited" title={`Edited ${formatStamp(n.updatedAt)}`}>
+                          · edited
+                        </span>
+                      )}
+                    </span>
+                    {canEdit && (
+                      <span className="note-actions">
+                        <button
+                          className="icon-btn"
+                          onClick={() => setEditing({ id: n.id, body: n.body })}
+                          aria-label="Edit note"
+                          title="Edit"
+                        >
+                          <Icon name="pencil" size={16} />
+                        </button>
+                        <ConfirmButton label="Delete note" onConfirm={() => removeNote(n)} />
+                      </span>
+                    )}
+                  </div>
+                  <p className="note-body">{n.body}</p>
+                </li>
+              ),
+            )}
           </ul>
         )}
       </section>
@@ -401,6 +498,7 @@ export default function SessionEditor({ subjectSlug, session, total, canEdit, on
           {canEdit && (
             <>
               <input ref={fileInput} type="file" accept={ACCEPT} multiple hidden onChange={onFiles} />
+              <input ref={cameraInput} type="file" accept="image/*" capture="environment" hidden onChange={onPhotos} />
               <button className="btn btn-outline btn-sm" onClick={() => fileInput.current?.click()} aria-label="Upload files">
                 <Icon name="upload" size={15} />
                 <span className="hide-mobile">Upload files</span>
@@ -490,6 +588,17 @@ export default function SessionEditor({ subjectSlug, session, total, canEdit, on
               );
             })}
           </ul>
+        )}
+
+        {canEdit && (
+          <button
+            type="button"
+            className={`btn capture-btn${fileCount > 0 ? ' compact' : ''}`}
+            onClick={() => cameraInput.current?.click()}
+          >
+            <Icon name="camera" size={18} />
+            Take photo
+          </button>
         )}
 
         {canEdit && (

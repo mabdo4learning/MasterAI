@@ -948,6 +948,21 @@ select:focus { border-color: var(--text); box-shadow: 0 0 0 4px rgba(17, 24, 39,
 }
 .nowrap { white-space: nowrap; }
 
+/* ---------- Note editing ---------- */
+.note-stamp { display: inline-flex; align-items: baseline; gap: 5px; min-width: 0; }
+.note-edited { font-size: 12px; font-weight: 600; color: var(--subtle); cursor: default; }
+.note-actions { display: inline-flex; align-items: center; gap: 2px; }
+.note.editing { display: grid; gap: 10px; background: #fff; border-color: var(--border); }
+.note.editing textarea { min-height: 72px; padding: 8px 10px; background: #fafafa; }
+
+/* ---------- Camera (touch screens only) ---------- */
+.capture-btn { display: none; }
+@media (hover: none) and (pointer: coarse) {
+  .capture-btn { display: flex; width: 100%; margin-top: 4px; padding: 14px; font-size: 15px; border-radius: 12px; }
+  .capture-btn.compact { margin-top: 14px; }
+  .capture-btn + .dropzone { margin-top: 10px; }
+}
+
 /* ---------- Search ---------- */
 .search-box {
   flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px;
