@@ -1,8 +1,7 @@
 import { Link } from 'react-router-dom';
 import { SUBJECTS } from '../../subjects';
 import type { DashboardSession } from '../../lib/api';
-
-const isStarted = (s: DashboardSession) => !!s.topic.trim() || s.noteCount > 0 || s.imageCount > 0 || s.documentCount > 0;
+import { STEPS, checklist, stepsDone } from '../../lib/checklist';
 
 export default function SubjectProgress({ sessions }: { sessions: DashboardSession[] | null }) {
   return (
@@ -10,15 +9,16 @@ export default function SubjectProgress({ sessions }: { sessions: DashboardSessi
       <div className="chart-head">
         <div>
           <h2>Progress by subject</h2>
-          <p className="muted small">Each block is a session — filled once it has a topic, note, image or document</p>
+          <p className="muted small">
+            Each block is a session, filling up as you tick attended, notes, slides and reviewed
+          </p>
         </div>
       </div>
       <ul className="progress-list">
         {SUBJECTS.map((subject) => {
           const own = sessions?.filter((s) => s.subjectSlug === subject.slug) ?? [];
-          const started = own.filter(isStarted).length;
-          const notes = own.reduce((n, s) => n + s.noteCount, 0);
-          const images = own.reduce((n, s) => n + s.imageCount, 0);
+          const complete = own.filter((s) => stepsDone(s) === STEPS).length;
+          const reviewed = own.filter((s) => s.reviewed).length;
           return (
             <li key={subject.slug}>
               <Link to={`/subjects/${subject.slug}`} className="progress-row">
@@ -31,22 +31,30 @@ export default function SubjectProgress({ sessions }: { sessions: DashboardSessi
                 {sessions === null ? (
                   <span className="skeleton segments-skeleton" />
                 ) : (
-                  <span className="segments" aria-label={`${started} of ${own.length} sessions started`}>
-                    {own.map((s) => (
-                      <span
-                        key={s.id}
-                        className="segment"
-                        title={`Session ${s.number}${s.topic ? ` — ${s.topic}` : ''}`}
-                        style={isStarted(s) ? { background: subject.color } : undefined}
-                      />
-                    ))}
+                  <span className="segments" aria-label={`${complete} of ${own.length} sessions complete`}>
+                    {own.map((s) => {
+                      const pct = (stepsDone(s) / STEPS) * 100;
+                      const missing = checklist(s).filter((x) => !x.done).map((x) => x.label.toLowerCase());
+                      return (
+                        <span
+                          key={s.id}
+                          className="segment"
+                          title={`Session ${s.number}${s.topic ? ` — ${s.topic}` : ''}\n${
+                            missing.length ? `To do: ${missing.join(', ')}` : 'All steps done'
+                          }`}
+                          style={
+                            pct > 0
+                              ? { background: `linear-gradient(90deg, ${subject.color} ${pct}%, #eceef1 ${pct}%)` }
+                              : undefined
+                          }
+                        />
+                      );
+                    })}
                   </span>
                 )}
                 <span className="progress-value">
-                  {sessions === null ? '' : `${started}/${own.length}`}
-                  <span className="progress-sub">
-                    {sessions === null ? '' : `${notes} notes · ${images} img`}
-                  </span>
+                  {sessions === null ? '' : `${complete}/${own.length}`}
+                  <span className="progress-sub">{sessions === null ? '' : `done · ${reviewed} reviewed`}</span>
                 </span>
               </Link>
             </li>

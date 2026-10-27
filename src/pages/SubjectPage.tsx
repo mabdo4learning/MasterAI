@@ -7,6 +7,7 @@ import AuthLink from '../components/AuthLink';
 import Icon from '../components/Icon';
 import SessionEditor from '../components/SessionEditor';
 import ExamBar from '../components/ExamBar';
+import { STEPS, checklist } from '../lib/checklist';
 import { useToast } from '../components/Toast';
 import NotFound from './NotFound';
 
@@ -123,7 +124,8 @@ export default function SubjectPage() {
               !error &&
               Array.from({ length: 6 }, (_, i) => <div key={i} className="session-item skeleton-block" />)}
             {sessions?.map((s) => {
-              const filled = s.noteCount + s.imageCount + s.documentCount > 0;
+              const steps = checklist(s);
+              const done = steps.filter((x) => x.done).length;
               return (
                 <button
                   key={s.id}
@@ -137,9 +139,15 @@ export default function SubjectPage() {
                   </span>
                   <span className={`session-topic${s.topic ? '' : ' empty'}`}>{s.topic || 'No topic yet'}</span>
                   <span className="session-counts">
-                    {filled && <span className="filled-dot" aria-hidden />}
-                    {plural(s.noteCount, 'note')} · {plural(s.imageCount, 'image')}
-                    {s.documentCount > 0 && ` · ${s.documentCount} doc${s.documentCount === 1 ? '' : 's'}`}
+                    <span className="session-counts-text">
+                      {plural(s.noteCount, 'note')} · {plural(s.imageCount, 'image')}
+                      {s.documentCount > 0 && ` · ${s.documentCount} doc${s.documentCount === 1 ? '' : 's'}`}
+                    </span>
+                    <span className="pips" title={`${done} of ${STEPS} steps done`} aria-label={`${done} of ${STEPS} steps done`}>
+                      {steps.map((x) => (
+                        <span key={x.key} className={x.done ? 'on' : undefined} />
+                      ))}
+                    </span>
                   </span>
                 </button>
               );

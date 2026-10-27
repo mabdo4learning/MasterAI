@@ -7,6 +7,8 @@ export type LectureSession = {
   number: number;
   topic: string;
   lectureDate: string | null;
+  attended: boolean;
+  reviewed: boolean;
   noteCount: number;
   imageCount: number;
   documentCount: number;
@@ -34,6 +36,8 @@ type SessionRow = {
   number: number;
   topic: string;
   lecture_date: string | null;
+  attended: boolean;
+  reviewed: boolean;
   notes: { count: number }[];
   images: { count: number }[];
   documents: { count: number }[];
@@ -44,12 +48,15 @@ const toSession = (r: SessionRow): LectureSession => ({
   number: r.number,
   topic: r.topic,
   lectureDate: r.lecture_date,
+  attended: r.attended,
+  reviewed: r.reviewed,
   noteCount: r.notes[0]?.count ?? 0,
   imageCount: r.images[0]?.count ?? 0,
   documentCount: r.documents[0]?.count ?? 0,
 });
 
-const SESSION_COLUMNS = 'id, number, topic, lecture_date, notes(count), images(count), documents(count)';
+const SESSION_COLUMNS =
+  'id, number, topic, lecture_date, attended, reviewed, notes(count), images(count), documents(count)';
 
 export async function listSessions(subjectSlug: string): Promise<LectureSession[]> {
   const { data, error } = await supabase
@@ -71,7 +78,10 @@ export async function addSession(subjectSlug: string, number: number): Promise<L
   return toSession(data as unknown as SessionRow);
 }
 
-export async function updateSession(id: string, patch: { topic?: string; lecture_date?: string | null }) {
+export async function updateSession(
+  id: string,
+  patch: { topic?: string; lecture_date?: string | null; attended?: boolean; reviewed?: boolean },
+) {
   const { error } = await supabase.from('sessions').update(patch).eq('id', id);
   if (error) throw error;
 }

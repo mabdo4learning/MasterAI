@@ -963,6 +963,44 @@ select:focus { border-color: var(--text); box-shadow: 0 0 0 4px rgba(17, 24, 39,
   .capture-btn + .dropzone { margin-top: 10px; }
 }
 
+/* ---------- Session checklist ---------- */
+.checklist { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin-top: 16px; padding-top: 14px; border-top: 1px dashed var(--border); }
+.check-item {
+  display: inline-flex; align-items: center; gap: 7px;
+  border: 1px solid var(--border); background: #fff; border-radius: 999px;
+  padding: 5px 12px 5px 6px; font-size: 13px; font-weight: 700; color: var(--muted);
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+button.check-item { cursor: pointer; }
+button.check-item:hover { border-color: var(--accent); color: var(--text); }
+.check-item.auto { border-style: dashed; cursor: default; }
+.check-box {
+  display: grid; place-items: center; width: 18px; height: 18px; border-radius: 50%;
+  border: 1.5px solid var(--border-strong); background: #fff; color: #fff; flex-shrink: 0;
+  transition: background 0.15s, border-color 0.15s;
+}
+.check-item.done { color: var(--text); border-color: color-mix(in srgb, var(--accent) 30%, transparent); background: var(--accent-soft); }
+.check-item.done .check-box { background: var(--accent); border-color: var(--accent); }
+.check-progress {
+  margin-left: auto; display: inline-flex; align-items: center; gap: 4px;
+  font-size: 12px; font-weight: 800; color: var(--muted); font-variant-numeric: tabular-nums;
+}
+.checklist.complete .check-progress { color: var(--success); }
+
+.session-counts { justify-content: space-between; }
+.session-counts-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pips { display: inline-flex; gap: 2px; flex-shrink: 0; }
+.pips span { width: 9px; height: 4px; border-radius: 2px; background: var(--border-strong); }
+.pips span.on { background: var(--accent); }
+.session-item.active .pips span { background: rgba(255, 255, 255, 0.35); }
+.session-item.active .pips span.on { background: #fff; }
+
+@media (max-width: 760px) {
+  .checklist { gap: 6px; }
+  .check-item { padding: 6px 11px 6px 6px; }
+  .check-progress { width: 100%; margin-left: 0; order: -1; }
+}
+
 /* ---------- Exams ---------- */
 .show-mobile { display: none; }
 .subject-body > .exam-bar { margin-bottom: 16px; }

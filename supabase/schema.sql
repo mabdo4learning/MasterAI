@@ -1,7 +1,8 @@
 -- Lecture notes schema: one private notebook per user.
 -- New project: run this once in Supabase → SQL Editor.
 -- Existing project from before multi-user support: run migrations-002-private.sql and
--- migrations-003-multi-user.sql, migrations-004-documents.sql and migrations-005-note-edits.sql instead.
+-- migrations-003-multi-user.sql, migrations-004-documents.sql, migrations-005-note-edits.sql and
+-- migrations-006-session-checklist.sql instead.
 
 create table if not exists public.sessions (
   id           uuid primary key default gen_random_uuid(),
@@ -10,6 +11,8 @@ create table if not exists public.sessions (
   number       int  not null,
   topic        text not null default '',
   lecture_date date,
+  attended     boolean not null default false,
+  reviewed     boolean not null default false,
   created_at   timestamptz not null default now(),
   constraint sessions_user_subject_number_key unique (user_id, subject_slug, number)
 );

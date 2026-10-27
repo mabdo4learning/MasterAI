@@ -18,6 +18,7 @@ import {
   type Note,
 } from '../lib/api';
 import { ACCEPT, MAX_UPLOAD_BYTES, docType, fileKind, formatBytes } from '../lib/files';
+import { STEPS, checklist } from '../lib/checklist';
 import ConfirmButton from './ConfirmButton';
 import DocumentViewer from './DocumentViewer';
 import Icon from './Icon';
@@ -139,6 +140,20 @@ export default function SessionEditor({ subjectSlug, session, total, canEdit, on
   };
 
   const autoGrow = () => fitHeight(textarea.current);
+
+  const toggleStep = async (key: 'attended' | 'reviewed') => {
+    const value = !session[key];
+    onPatch({ [key]: value });
+    try {
+      await updateSession(session.id, { [key]: value });
+    } catch (e) {
+      onPatch({ [key]: !value });
+      toast((e as Error).message, 'error');
+    }
+  };
+
+  const steps = checklist(session);
+  const stepsDone = steps.filter((s) => s.done).length;
 
   const submitNote = async () => {
     const body = draft.trim();
@@ -386,6 +401,45 @@ export default function SessionEditor({ subjectSlug, session, total, canEdit, on
             )}
           </div>
         )}
+
+        <div className={`checklist${stepsDone === STEPS ? ' complete' : ''}`} role="group" aria-label="Session checklist">
+          {steps.map((step) =>
+            step.auto || !canEdit ? (
+              <span
+                key={step.key}
+                className={`check-item${step.done ? ' done' : ''}${step.auto ? ' auto' : ''}`}
+                title={
+                  step.auto
+                    ? `Ticks itself when this session has ${step.key === 'notes' ? 'a note' : 'an image or document'}`
+                    : undefined
+                }
+              >
+                <span className="check-box">{step.done && <Icon name="check" size={12} />}</span>
+                {step.label}
+              </span>
+            ) : (
+              <button
+                key={step.key}
+                type="button"
+                className={`check-item${step.done ? ' done' : ''}`}
+                aria-pressed={step.done}
+                onClick={() => toggleStep(step.key as 'attended' | 'reviewed')}
+              >
+                <span className="check-box">{step.done && <Icon name="check" size={12} />}</span>
+                {step.label}
+              </button>
+            ),
+          )}
+          <span className="check-progress">
+            {stepsDone === STEPS ? (
+              <>
+                <Icon name="check" size={13} /> Done
+              </>
+            ) : (
+              `${stepsDone}/${STEPS}`
+            )}
+          </span>
+        </div>
       </section>
 
       <section className="card">
