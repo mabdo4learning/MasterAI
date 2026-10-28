@@ -326,7 +326,25 @@ export function ShareManager({
   const [email, setEmail] = useState('');
   const [adding, setAdding] = useState(false);
   const [confirmStop, setConfirmStop] = useState(false);
+  const me = useProfile().name;
   const url = shareUrl(share.token);
+
+  // Adding someone gives access but sends nothing, so offer a ready-made email from the user's own mail app.
+  // It links to the share itself, which works for people with access even when the link is turned off.
+  const mailto = (p: Recipient) => {
+    const link = `${window.location.origin}/shared/${share.id}`;
+    const subject = `${me || 'A classmate'} shared lecture notes with you: ${share.title}`;
+    const body = [
+      `Hi${p.name ? ` ${p.name.split(' ')[0]}` : ''},`,
+      '',
+      `I shared "${share.title}" from my lecture notes with you. Open it here:`,
+      link,
+      '',
+      `Sign in with ${p.email}. It is also under "Shared with you" on your dashboard, and you can copy it into your own notebook.`,
+      ...(me ? ['', me] : []),
+    ].join('\n');
+    return `mailto:${encodeURIComponent(p.email)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  };
 
   useEffect(() => {
     listRecipients(share.id)
@@ -370,7 +388,7 @@ export function ShareManager({
       setPeople(list);
       onChange({ ...share, recipientCount: list.length });
       setEmail('');
-      toast(`Shared with ${value}`);
+      toast(`Shared with ${value} — use the mail button to let them know`);
     } catch (err) {
       toast((err as Error).message, 'error');
     } finally {
@@ -463,7 +481,7 @@ export function ShareManager({
             {adding ? 'Adding…' : 'Share'}
           </button>
         </form>
-        <p className="muted small">They need an account here. It shows up under “Shared with you” on their dashboard.</p>
+        <p className="muted small">They need an account here. It appears under “Shared with you” on their dashboard — no email is sent, so use the mail button below to tell them.</p>
       </section>
 
       <section className="share-block">
@@ -488,6 +506,9 @@ export function ShareManager({
                     {p.via === 'email' ? 'added by email' : 'opened the link'}
                   </span>
                 </span>
+                <a className="icon-btn" href={mailto(p)} aria-label={`Email ${p.name || p.email} the link`} title="Email them the link">
+                  <Icon name="mail" size={16} />
+                </a>
                 <button className="btn btn-ghost btn-sm" onClick={() => remove(p)} aria-label={`Remove ${p.name || p.email}`}>
                   Remove
                 </button>
