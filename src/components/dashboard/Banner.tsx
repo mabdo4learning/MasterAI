@@ -35,6 +35,10 @@ export default function Banner({ started, total, resume }: Props) {
             <Icon name="calendarDays" size={15} />
             <span className="hide-mobile">Calendar</span>
           </Link>
+          <Link to="/shared" className="btn btn-ghost btn-sm" aria-label="Sharing" title="Sharing">
+            <Icon name="users" size={15} />
+            <span className="hide-mobile">Sharing</span>
+          </Link>
           <AuthLink />
         </div>
       </div>

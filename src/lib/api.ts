@@ -120,7 +120,7 @@ export async function deleteNote(id: string) {
 // The bucket is private, so images are shown through short-lived signed URLs.
 const SIGNED_URL_TTL = 60 * 60 * 6;
 
-async function signedUrls(paths: string[]): Promise<Record<string, string>> {
+export async function signedUrls(paths: string[]): Promise<Record<string, string>> {
   if (paths.length === 0) return {};
   const { data, error } = await supabase.storage.from(BUCKET).createSignedUrls(paths, SIGNED_URL_TTL);
   if (error) throw error;

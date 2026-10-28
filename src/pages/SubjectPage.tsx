@@ -7,6 +7,7 @@ import AuthLink from '../components/AuthLink';
 import Icon from '../components/Icon';
 import SessionEditor from '../components/SessionEditor';
 import ExamBar from '../components/ExamBar';
+import ShareDialog from '../components/ShareDialog';
 import { STEPS, checklist } from '../lib/checklist';
 import { useToast } from '../components/Toast';
 import NotFound from './NotFound';
@@ -25,6 +26,7 @@ export default function SubjectPage() {
   const [sessions, setSessions] = useState<LectureSession[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
+  const [sharing, setSharing] = useState(false);
 
   useEffect(() => {
     if (!subject) return;
@@ -106,6 +108,12 @@ export default function SubjectPage() {
               </p>
             </div>
           </div>
+          {canEdit && (
+            <button className="btn btn-ghost btn-sm" onClick={() => setSharing(true)} aria-label="Share subject" title="Share this subject">
+              <Icon name="share" size={16} />
+              <span className="hide-mobile">Share</span>
+            </button>
+          )}
           <Link to="/calendar" className="btn btn-ghost btn-sm" aria-label="Calendar" title="Calendar">
             <Icon name="calendarDays" size={16} />
           </Link>
@@ -183,6 +191,7 @@ export default function SubjectPage() {
           </main>
         </div>
       </div>
+      {sharing && <ShareDialog subject={subject} onClose={() => setSharing(false)} />}
     </div>
   );
 }

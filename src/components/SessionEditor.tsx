@@ -24,6 +24,8 @@ import DocumentViewer from './DocumentViewer';
 import Icon from './Icon';
 import Lightbox from './Lightbox';
 import QuestionBank from './QuestionBank';
+import ShareDialog from './ShareDialog';
+import { findSubject } from '../subjects';
 import { useToast } from './Toast';
 
 type Props = {
@@ -77,6 +79,7 @@ export default function SessionEditor({ subjectSlug, session, total, canEdit, on
   const [dragging, setDragging] = useState(false);
   const [viewing, setViewing] = useState<number | null>(null);
   const [viewingDoc, setViewingDoc] = useState<LectureDocument | null>(null);
+  const [sharing, setSharing] = useState(false);
   const [editing, setEditing] = useState<{ id: string; body: string } | null>(null);
   const [savingEdit, setSavingEdit] = useState(false);
 
@@ -362,6 +365,11 @@ export default function SessionEditor({ subjectSlug, session, total, canEdit, on
                 {saveState === 'saved' && <Icon name="check" size={13} />}
                 {saveState === 'saving' ? 'Saving…' : saveState === 'saved' ? 'Saved' : 'Not saved'}
               </span>
+            )}
+            {canEdit && (
+              <button className="icon-btn" onClick={() => setSharing(true)} aria-label="Share this session" title="Share this session">
+                <Icon name="share" />
+              </button>
             )}
             <div className="pager">
               <button className="icon-btn" onClick={onPrev} disabled={!onPrev} aria-label="Previous session">
@@ -687,6 +695,9 @@ export default function SessionEditor({ subjectSlug, session, total, canEdit, on
         <Lightbox images={images} index={viewing} onChange={setViewing} onClose={() => setViewing(null)} />
       )}
       {viewingDoc && <DocumentViewer doc={viewingDoc} onClose={() => setViewingDoc(null)} onDownload={() => download(viewingDoc)} />}
+      {sharing && findSubject(subjectSlug) && (
+        <ShareDialog subject={findSubject(subjectSlug)!} session={session} onClose={() => setSharing(false)} />
+      )}
     </div>
   );
 }

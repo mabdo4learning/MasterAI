@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import { Link, Navigate, useNavigate } from 'react-router-dom';
+import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/auth';
 import { SITE } from '../config';
@@ -22,6 +22,7 @@ const friendlyError = (message: string) =>
 export default function Signup() {
   const { session, ready } = useAuth();
   const navigate = useNavigate();
+  const from = (useLocation().state as { from?: string } | null)?.from ?? '/';
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -32,7 +33,7 @@ export default function Signup() {
   const [sentTo, setSentTo] = useState<string | null>(null);
 
   if (!ready) return <Splash />;
-  if (session) return <Navigate to="/" replace />;
+  if (session) return <Navigate to={from} replace />;
 
   const pw = strength(password);
 
@@ -60,7 +61,7 @@ export default function Signup() {
     if (data.user && data.user.identities?.length === 0) {
       return setError(friendlyError('already registered'));
     }
-    if (data.session) navigate('/', { replace: true });
+    if (data.session) navigate(from, { replace: true });
     else setSentTo(email.trim());
   };
 
@@ -183,7 +184,7 @@ export default function Signup() {
         </button>
 
         <p className="auth-switch">
-          Already have an account? <Link to="/login">Sign in</Link>
+          Already have an account? <Link to="/login" state={{ from }}>Sign in</Link>
         </p>
       </form>
     </AuthLayout>

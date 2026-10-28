@@ -12,6 +12,7 @@ import SubjectProgress from '../components/dashboard/SubjectProgress';
 import RecentActivity from '../components/dashboard/RecentActivity';
 import UpcomingExams from '../components/dashboard/UpcomingExams';
 import WeeklyReview from '../components/dashboard/WeeklyReview';
+import SharedWithYou from '../components/dashboard/SharedWithYou';
 
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
 
@@ -78,6 +79,8 @@ export default function Home() {
       />
 
       <WeeklyReview sessions={sessions} onPatch={patchSession} />
+
+      <SharedWithYou />
 
       <UpcomingExams sessions={sessions} />
 
