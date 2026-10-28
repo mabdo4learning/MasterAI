@@ -1455,3 +1455,15 @@ button.check-item:hover { border-color: var(--accent); color: var(--text); }
   .weekly-progress { grid-template-columns: auto 56px; }
   .review-check { padding: 6px; }
 }
+
+/* ---------- Backup ---------- */
+.backup-contents { list-style: none; display: grid; gap: 8px; padding: 12px 14px; border-radius: 12px; background: var(--fill); border: 1px solid var(--fill-line); }
+.backup-contents li { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 14px; }
+.backup-contents .icon { color: var(--muted); flex: none; }
+.backup-contents strong { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; }
+.backup-progress { display: grid; gap: 6px; }
+.backup-progress .weekly-bar { width: 100%; }
+.backup-actions { justify-content: space-between; flex-wrap: wrap; }
+@media (max-width: 640px) {
+  .backup-actions .muted { text-align: center; }
+}

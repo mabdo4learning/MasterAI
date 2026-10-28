@@ -8,6 +8,9 @@ import AuthLink from '../components/AuthLink';
 import Icon, { type IconName } from '../components/Icon';
 import { useTheme, type ThemeChoice } from '../lib/theme';
 import { useInstall } from '../lib/install';
+import { todayKey } from '../lib/exams';
+import { formatBytes } from '../lib/files';
+import type { BackupProgress } from '../lib/backup';
 import PasswordInput from '../components/PasswordInput';
 import StrengthMeter from '../components/StrengthMeter';
 import { useToast } from '../components/Toast';
@@ -61,6 +64,7 @@ export default function SettingsPage() {
           onError={(m) => toast(m, 'error')}
         />
         <AppSettings />
+        <BackupSettings onError={(m) => toast(m, 'error')} />
         <PasswordForm onSaved={() => toast('Password changed')} />
 
         <section className="card settings-card">
@@ -325,3 +329,116 @@ function AppSettings() {
     </section>
   );
 }
+
+const LAST_BACKUP = 'lastBackup';
+
+function readLastBackup(): string | null {
+  try {
+    return localStorage.getItem(LAST_BACKUP);
+  } catch {
+    return null;
+  }
+}
+
+function progressLabel(p: BackupProgress | null): string {
+  if (!p || p.step === 'data') return 'Collecting your notes…';
+  if (p.step === 'files') return `Downloading files ${p.done} of ${p.total}…`;
+  return 'Creating the zip…';
+}
+
+/** Downloads everything in the account as a zip the user keeps themselves, independent of Supabase. */
+function BackupSettings({ onError }: { onError: (message: string) => void }) {
+  const toast = useToast();
+  const [withFiles, setWithFiles] = useState(true);
+  const [progress, setProgress] = useState<BackupProgress | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [last, setLast] = useState(readLastBackup);
+
+  const download = async () => {
+    setBusy(true);
+    setProgress(null);
+    try {
+      // Loaded on demand so the zip library isn't part of every page load.
+      const { createBackup } = await import('../lib/backup');
+      const blob = await createBackup(withFiles, setProgress);
+      const now = new Date();
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `lecture-notes-backup-${todayKey(now)}.zip`;
+      document.body.append(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 60_000);
+      try {
+        localStorage.setItem(LAST_BACKUP, now.toISOString());
+      } catch {
+        // Private mode: the backup still downloaded, it just isn't remembered.
+      }
+      setLast(now.toISOString());
+      toast(`Backup downloaded · ${formatBytes(blob.size)}`);
+    } catch (e) {
+      onError((e as Error).message);
+    } finally {
+      setBusy(false);
+      setProgress(null);
+    }
+  };
+
+  const percent = progress && progress.total > 0 ? (progress.done / progress.total) * 100 : 0;
+
+  return (
+    <section className="card settings-card">
+      <div className="settings-head">
+        <h2>
+          <Icon name="download" /> Backup
+        </h2>
+        <p className="muted small">
+          Download a copy of everything in your account — sessions, notes, exam questions, checklist and exam dates — as a
+          zip file you keep yourself.
+        </p>
+      </div>
+
+      <ul className="backup-contents">
+        <li>
+          <Icon name="note" size={15} /> <strong>notes.md</strong>
+          <span className="muted small">readable in any text editor</span>
+        </li>
+        <li>
+          <Icon name="file" size={15} /> <strong>backup.json</strong>
+          <span className="muted small">the complete data</span>
+        </li>
+        {withFiles && (
+          <li>
+            <Icon name="image" size={15} /> <strong>files/</strong>
+            <span className="muted small">your images, PDFs and slides, a folder per session</span>
+          </li>
+        )}
+      </ul>
+
+      <label className="toggle backup-toggle">
+        <input type="checkbox" checked={withFiles} disabled={busy} onChange={(e) => setWithFiles(e.target.checked)} />
+        <span>Include images and files (bigger download)</span>
+      </label>
+
+      {busy && (
+        <div className="backup-progress" role="status">
+          <span className="muted small">{progressLabel(progress)}</span>
+          <span className="weekly-bar">
+            <span style={{ width: `${progress?.step === 'zip' ? 100 : percent}%` }} />
+          </span>
+        </div>
+      )}
+
+      <div className="settings-actions backup-actions">
+        <span className="muted small">
+          {last ? `Last backup on this device: ${new Date(last).toLocaleDateString(undefined, { dateStyle: 'medium' })}` : 'No backup downloaded on this device yet.'}
+        </span>
+        <button className="btn" onClick={download} disabled={busy}>
+          <Icon name="download" size={16} />
+          {busy ? 'Preparing…' : 'Download backup'}
+        </button>
+      </div>
+    </section>
+  );
+}
+
