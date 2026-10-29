@@ -582,3 +582,150 @@ export async function getQuestionStats(): Promise<QuestionStats> {
   }
   return stats;
 }
+
+/** Course info for a whole subject, kept apart from its sessions. */
+export type SubjectDetails = {
+  lecturer: string;
+  lecturerEmail: string;
+  schedule: string;
+  room: string;
+  officeHours: string;
+  credits: string;
+  assessment: string;
+  overview: string;
+  updatedAt: string | null;
+};
+
+export const EMPTY_DETAILS: SubjectDetails = {
+  lecturer: '',
+  lecturerEmail: '',
+  schedule: '',
+  room: '',
+  officeHours: '',
+  credits: '',
+  assessment: '',
+  overview: '',
+  updatedAt: null,
+};
+
+type DetailsRow = {
+  lecturer: string;
+  lecturer_email: string;
+  schedule: string;
+  room: string;
+  office_hours: string;
+  credits: string;
+  assessment: string;
+  overview: string;
+  updated_at: string;
+};
+
+const DETAILS_COLUMNS = 'lecturer, lecturer_email, schedule, room, office_hours, credits, assessment, overview, updated_at';
+
+export const toDetails = (r: DetailsRow | null): SubjectDetails =>
+  r
+    ? {
+        lecturer: r.lecturer,
+        lecturerEmail: r.lecturer_email,
+        schedule: r.schedule,
+        room: r.room,
+        officeHours: r.office_hours,
+        credits: r.credits,
+        assessment: r.assessment,
+        overview: r.overview,
+        updatedAt: r.updated_at,
+      }
+    : EMPTY_DETAILS;
+
+export const detailsToRow = (d: Partial<SubjectDetails>) => {
+  const row: Record<string, string> = {};
+  if (d.lecturer !== undefined) row.lecturer = d.lecturer;
+  if (d.lecturerEmail !== undefined) row.lecturer_email = d.lecturerEmail;
+  if (d.schedule !== undefined) row.schedule = d.schedule;
+  if (d.room !== undefined) row.room = d.room;
+  if (d.officeHours !== undefined) row.office_hours = d.officeHours;
+  if (d.credits !== undefined) row.credits = d.credits;
+  if (d.assessment !== undefined) row.assessment = d.assessment;
+  if (d.overview !== undefined) row.overview = d.overview;
+  return row;
+};
+
+export async function getSubjectDetails(subjectSlug: string): Promise<SubjectDetails> {
+  const { data, error } = await supabase
+    .from('subject_details')
+    .select(DETAILS_COLUMNS)
+    .eq('subject_slug', subjectSlug)
+    .maybeSingle();
+  if (error) throw error;
+  return toDetails(data as DetailsRow | null);
+}
+
+/** Creates the row on first save; afterwards only the changed fields are written. */
+export async function saveSubjectDetails(subjectSlug: string, patch: Partial<SubjectDetails>): Promise<SubjectDetails> {
+  const { data, error } = await supabase
+    .from('subject_details')
+    .upsert({ subject_slug: subjectSlug, ...detailsToRow(patch) }, { onConflict: 'user_id,subject_slug' })
+    .select(DETAILS_COLUMNS)
+    .single();
+  if (error) throw error;
+  return toDetails(data as DetailsRow);
+}
+
+export type SubjectFiles = { images: LectureImage[]; documents: LectureDocument[] };
+
+type SubjectFileRow = DocumentRow & { kind: 'image' | 'document' };
+const SUBJECT_FILE_COLUMNS = `kind, ${DOCUMENT_COLUMNS}`;
+
+export async function listSubjectFiles(subjectSlug: string): Promise<SubjectFiles> {
+  const { data, error } = await supabase
+    .from('subject_files')
+    .select(SUBJECT_FILE_COLUMNS)
+    .eq('subject_slug', subjectSlug)
+    .order('created_at');
+  if (error) throw error;
+  const rows = data as SubjectFileRow[];
+  const urls = await signedUrls(rows.filter((r) => r.kind === 'image').map((r) => r.path));
+  return {
+    images: rows.filter((r) => r.kind === 'image').map((r) => ({ id: r.id, path: r.path, fileName: r.file_name, url: urls[r.path] ?? '' })),
+    documents: rows.filter((r) => r.kind === 'document').map(toDocument),
+  };
+}
+
+/** Uploads one image (shrunk like session images) or document to the subject itself. */
+export async function uploadSubjectFile(
+  subjectSlug: string,
+  file: File,
+  kind: 'image' | 'document',
+): Promise<{ kind: 'image'; image: LectureImage } | { kind: 'document'; document: LectureDocument }> {
+  const userId = (await supabase.auth.getSession()).data.session?.user.id;
+  if (!userId) throw new Error('You need to be signed in to upload files');
+  const blob = kind === 'image' ? await shrinkImage(file) : file;
+  const contentType = kind === 'image' ? blob.type || file.type : file.type || docType(file.name).mime;
+  const ext = kind === 'image' && blob.type === 'image/jpeg' ? 'jpg' : extOf(file.name) || 'bin';
+  const path = `${userId}/${subjectSlug}/subject/${crypto.randomUUID()}.${ext}`;
+
+  const up = await supabase.storage.from(BUCKET).upload(path, blob, { contentType });
+  if (up.error) throw up.error;
+
+  const { data, error } = await supabase
+    .from('subject_files')
+    .insert({ subject_slug: subjectSlug, kind, path, file_name: file.name, mime_type: contentType, size_bytes: blob.size })
+    .select(SUBJECT_FILE_COLUMNS)
+    .single();
+  if (error) {
+    await supabase.storage.from(BUCKET).remove([path]);
+    throw error;
+  }
+  const row = data as SubjectFileRow;
+  if (kind === 'image') {
+    const urls = await signedUrls([row.path]);
+    return { kind, image: { id: row.id, path: row.path, fileName: row.file_name, url: urls[row.path] ?? '' } };
+  }
+  return { kind, document: toDocument(row) };
+}
+
+export async function deleteSubjectFile(file: { id: string; path: string }) {
+  await supabase.storage.from(BUCKET).remove([file.path]);
+  const { error } = await supabase.from('subject_files').delete().eq('id', file.id);
+  if (error) throw error;
+}

@@ -43,6 +43,7 @@ To make notes editable, run `supabase/migrations-005-note-edits.sql` before depl
 For the session checklist (attended / reviewed), run `supabase/migrations-006-session-checklist.sql` before deploying.
 For the question bank and practice mode, run `supabase/migrations-007-questions.sql` before deploying.
 For sharing between accounts, run `supabase/migrations-008-sharing.sql` before deploying.
+For subject details and subject attachments, run `supabase/migrations-009-subject-details.sql` (after 008) before deploying.
 
 ### Sign-ups
 - Confirmation emails: Supabase's built-in email sender only delivers to your project's team members and is heavily

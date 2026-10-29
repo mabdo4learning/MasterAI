@@ -393,7 +393,7 @@ function BackupSettings({ onError }: { onError: (message: string) => void }) {
           <Icon name="download" /> Backup
         </h2>
         <p className="muted small">
-          Download a copy of everything in your account — sessions, notes, exam questions, checklist and exam dates — as a
+          Download a copy of everything in your account — sessions, notes, exam questions, checklist, exam dates and subject details — as a
           zip file you keep yourself.
         </p>
       </div>

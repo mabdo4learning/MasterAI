@@ -42,7 +42,10 @@ export default function CopyDialog({ content, onClose }: { content: SharedConten
       const targets = whole
         ? sessions.map((s) => ({ from: s, subjectSlug: content.subjectSlug, number: s.number }))
         : [{ from: single, subjectSlug: slug, number }];
-      setResult(await copyToNotebook(targets, setProgress));
+      const extras = whole
+        ? { subjectSlug: content.subjectSlug, details: content.details, images: content.subjectImages, documents: content.subjectDocuments }
+        : undefined;
+      setResult(await copyToNotebook(targets, setProgress, extras));
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -64,7 +67,8 @@ export default function CopyDialog({ content, onClose }: { content: SharedConten
           </span>
           <p>
             Copied {plural(result.notes, 'note')}, {plural(result.files, 'file')}
-            {result.questions > 0 && ` and ${plural(result.questions, 'question')}`} into your notebook. They are yours now —
+            {result.questions > 0 && ` and ${plural(result.questions, 'question')}`}
+            {result.details && ', plus the course info,'} into your notebook. They are yours now —
             edit them like any other note.
           </p>
           {result.failedFiles.length > 0 && (
@@ -86,7 +90,7 @@ export default function CopyDialog({ content, onClose }: { content: SharedConten
           {whole ? (
             <p className="muted">
               Copies {plural(sessions.length, 'session')} with notes or files into your <strong>{target?.title ?? content.subjectSlug}</strong>,
-              keeping the same session numbers. Anything you already have there stays — the copies are added next to it.
+              keeping the same session numbers, along with the subject details and attachments. Anything you already have stays — copies are added next to it, and course info only fills fields you left empty.
             </p>
           ) : (
             <>
@@ -137,7 +141,7 @@ export default function CopyDialog({ content, onClose }: { content: SharedConten
             <button className="btn btn-ghost" onClick={onClose} disabled={busy}>
               Cancel
             </button>
-            <button className="btn" onClick={run} disabled={busy || (whole ? sessions.length === 0 : mine === null)}>
+            <button className="btn" onClick={run} disabled={busy || (whole ? sessions.length === 0 && !content.details && content.subjectImages.length + content.subjectDocuments.length === 0 : mine === null)}>
               <Icon name="copy" size={16} />
               {busy ? 'Copying…' : 'Copy to my notebook'}
             </button>

@@ -9,6 +9,19 @@ type SessionRow = { id: string; subject_slug: string; number: number; topic: str
 type NoteRow = { session_id: string; body: string; created_at: string; updated_at: string | null };
 type FileRow = { session_id: string; path: string; file_name: string; created_at: string; mime_type?: string; size_bytes?: number };
 type QuestionRow = { session_id: string; question: string; answer: string; last_result: string | null; practiced_at: string | null; created_at: string };
+type SubjectFileRow = FileRow & { subject_slug: string; kind: 'image' | 'document' };
+type DetailsRow = Record<string, string> & { subject_slug: string };
+
+const DETAIL_FIELDS: [column: string, key: string, label: string][] = [
+  ['lecturer', 'lecturer', 'Lecturer'],
+  ['lecturer_email', 'lecturerEmail', 'Lecturer email'],
+  ['schedule', 'schedule', 'When'],
+  ['room', 'room', 'Where'],
+  ['office_hours', 'officeHours', 'Office hours'],
+  ['credits', 'credits', 'Credits'],
+  ['assessment', 'assessment', 'Assessment'],
+  ['overview', 'overview', 'Overview'],
+];
 
 const PAGE = 1000;
 const PARALLEL = 4;
@@ -52,16 +65,21 @@ export async function createBackup(includeFiles: boolean, onProgress: (p: Backup
   const user = auth.user;
   if (!user) throw new Error('You need to be signed in to download a backup');
 
-  onProgress({ step: 'data', done: 0, total: 5 });
+  onProgress({ step: 'data', done: 0, total: 7 });
   let fetched = 0;
-  const track = <T,>(p: Promise<T>) => p.then((r) => (onProgress({ step: 'data', done: ++fetched, total: 5 }), r));
-  const [sessions, notes, images, documents, questions] = await Promise.all([
+  const track = <T,>(p: Promise<T>) => p.then((r) => (onProgress({ step: 'data', done: ++fetched, total: 7 }), r));
+  const [sessions, notes, images, documents, questions, detailRows, subjectFiles] = await Promise.all([
     track(all<SessionRow>('sessions', 'id, subject_slug, number, topic, lecture_date, attended, reviewed, created_at')),
     track(all<NoteRow>('notes', 'id, session_id, body, created_at, updated_at')),
     track(all<FileRow>('images', 'id, session_id, path, file_name, created_at')),
     track(all<FileRow>('documents', 'id, session_id, path, file_name, mime_type, size_bytes, created_at')),
     // The questions table arrived later; an account without it still gets a backup.
     track(all<QuestionRow>('questions', 'id, session_id, question, answer, last_result, practiced_at, created_at').catch(() => [])),
+    // Subject details came later still; one row per subject, so no paging needed.
+    track(
+      Promise.resolve(supabase.from('subject_details').select('*')).then(({ data, error }) => (error ? [] : (data as DetailsRow[]))),
+    ),
+    track(all<SubjectFileRow>('subject_files', 'id, subject_slug, kind, path, file_name, mime_type, size_bytes, created_at').catch(() => [])),
   ]);
 
   const bySession = <T extends { session_id: string }>(rows: T[]) => {
@@ -104,6 +122,13 @@ export async function createBackup(includeFiles: boolean, onProgress: (p: Backup
     return {
       ...subject,
       examDate: (meta.exams as Record<string, string> | undefined)?.[subject.slug] ?? null,
+      details: (() => {
+        const row = detailRows.find((d) => d.subject_slug === subject.slug);
+        return row ? Object.fromEntries(DETAIL_FIELDS.map(([column, key]) => [key, row[column] ?? ''])) : null;
+      })(),
+      attachments: subjectFiles
+        .filter((f) => f.subject_slug === subject.slug)
+        .map((f) => ({ kind: f.kind, ...fileEntry(f, `${safe(`${subject.number} ${subject.title}`.trim())}/Subject`) })),
       sessions: own.map((s) => {
         const folder = `${safe(`${subject.number} ${subject.title}`.trim())}/Session ${s.number}`;
         return {
@@ -145,6 +170,7 @@ export async function createBackup(includeFiles: boolean, onProgress: (p: Backup
       questions: questions.length,
       images: images.length,
       documents: documents.length,
+      subjectFiles: subjectFiles.length,
     },
     subjects: data,
   };
@@ -181,6 +207,8 @@ type Backup = {
     number: string;
     title: string;
     examDate: string | null;
+    details: Record<string, string> | null;
+    attachments: Row[];
     sessions: {
       number: number;
       topic: string;
@@ -204,9 +232,16 @@ function markdown(b: Backup): string {
     const used = subject.sessions.filter(
       (s) => s.topic || s.lectureDate || s.notes.length || s.questions.length || s.images.length || s.documents.length,
     );
-    if (used.length === 0 && !subject.examDate) continue;
+    const info = DETAIL_FIELDS.filter(([, key]) => subject.details?.[key]);
+    if (used.length === 0 && !subject.examDate && info.length === 0 && subject.attachments.length === 0) continue;
     out.push(`## ${[subject.number, subject.title].filter(Boolean).join(' ')}`, '');
     if (subject.examDate) out.push(`Exam: ${subject.examDate}`, '');
+    for (const [, key, label] of info) {
+      if (key === 'overview') out.push('', '**Overview**', '', subject.details![key], '');
+      else out.push(`**${label}:** ${subject.details![key]}  `);
+    }
+    if (info.length && info[info.length - 1][1] !== 'overview') out.push('');
+    if (subject.attachments.length) out.push(`**Subject attachments:** ${subject.attachments.map((f) => f.fileName).join(', ')}`, '');
 
     for (const s of used) {
       out.push(`### Session ${s.number}${s.topic ? ` — ${s.topic}` : ''}`, '');

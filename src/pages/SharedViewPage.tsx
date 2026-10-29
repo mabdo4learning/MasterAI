@@ -7,6 +7,7 @@ import AuthLink from '../components/AuthLink';
 import CopyDialog from '../components/CopyDialog';
 import Icon from '../components/Icon';
 import SharedSessionView from '../components/SharedSessionView';
+import { Attachments, DetailsInfo } from '../components/SubjectDetails';
 import { useToast } from '../components/Toast';
 
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
@@ -43,10 +44,13 @@ export default function SharedViewPage() {
   const subject = content ? findSubject(content.subjectSlug) : undefined;
   const color = subject?.color ?? '#4B5563';
   const visible = content ? (content.kind === 'subject' ? content.sessions.filter((s) => !sessionIsEmpty(s)) : content.sessions) : [];
+  const hasDetails =
+    !!content && content.kind === 'subject' && (!!content.details || content.subjectImages.length + content.subjectDocuments.length > 0);
+  const view = hasDetails && (params.get('view') === 'details' || visible.length === 0) ? 'details' : 'sessions';
   const selected = visible.find((s) => s.number === Number(params.get('session'))) ?? visible[0];
   const totals = visible.reduce(
     (t, s) => ({ notes: t.notes + s.notes.length, files: t.files + s.images.length + s.documents.length }),
-    { notes: 0, files: 0 },
+    { notes: 0, files: content ? content.subjectImages.length + content.subjectDocuments.length : 0 },
   );
 
   const leave = async () => {
@@ -133,7 +137,7 @@ export default function SharedViewPage() {
                     <span className="hide-mobile">Remove</span>
                   </button>
                 )}
-                <button className="btn btn-sm" onClick={() => setCopying(true)} disabled={visible.length === 0}>
+                <button className="btn btn-sm" onClick={() => setCopying(true)} disabled={visible.length === 0 && !hasDetails}>
                   <Icon name="copy" size={15} /> Add to my notebook
                 </button>
               </div>
@@ -141,14 +145,59 @@ export default function SharedViewPage() {
           </section>
         )}
 
-        {content && visible.length === 0 && (
+        {hasDetails && content && (
+          <div className="subject-tabs" role="tablist" aria-label="Shared subject">
+            <button
+              role="tab"
+              aria-selected={view === 'sessions'}
+              className={view === 'sessions' ? 'active' : undefined}
+              onClick={() => setParams({}, { replace: true })}
+            >
+              <Icon name="calendar" size={15} /> Sessions <span className="count">{visible.length}</span>
+            </button>
+            <button
+              role="tab"
+              aria-selected={view === 'details'}
+              className={view === 'details' ? 'active' : undefined}
+              onClick={() => setParams({ view: 'details' }, { replace: true })}
+            >
+              <Icon name="cap" size={15} /> Subject details
+            </button>
+          </div>
+        )}
+
+        {view === 'details' && content && (
+          <div className="details-layout shared-details">
+            {content.details && (
+              <section className="card">
+                <div className="section-head">
+                  <h2>
+                    <Icon name="cap" /> Course info
+                  </h2>
+                </div>
+                <DetailsInfo details={content.details} />
+                {content.details.overview && <p className="note-body details-overview">{content.details.overview}</p>}
+              </section>
+            )}
+            <section className="card images-section">
+              <div className="section-head">
+                <h2>
+                  <Icon name="file" /> Subject attachments
+                </h2>
+              </div>
+              <Attachments images={content.subjectImages} documents={content.subjectDocuments} empty="No attachments." />
+            </section>
+          </div>
+        )}
+
+        {view === 'sessions' && content && visible.length === 0 && (
           <div className="card empty-state">
             <p>Nothing here yet.</p>
             <p className="muted small">When {content.ownerName || 'they'} add notes or files, they show up here.</p>
           </div>
         )}
 
-        {content && selected && (
+        {view === 'sessions' && content && selected && (
           <div className={content.kind === 'subject' ? 'subject-layout' : 'shared-single'}>
             {content.kind === 'subject' && (
               <aside className="session-list" aria-label="Sessions">
