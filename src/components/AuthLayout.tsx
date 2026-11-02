@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { SUBJECTS } from '../subjects';
 import Icon from './Icon';
+import Logo from './Logo';
 
 const FEATURES = [
   { icon: 'note', title: 'Notes for every session', text: 'Write during the lecture, find it again in seconds.' },
@@ -15,18 +16,13 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
       <aside className="auth-showcase">
         <div className="banner-glow" aria-hidden />
         <div className="showcase-inner">
-          <div className="brand">
-            <span className="brand-mark">
-              <Icon name="note" size={20} />
-            </span>
-            My lecture notes
-          </div>
+          <Logo size={36} className="logo-on-ink" />
 
           <div className="showcase-copy">
             <h1>
               Every lecture,
               <br />
-              in one place.
+              <em>beautifully</em> kept.
             </h1>
             <p>Your Master's notes and lecture images, organised by subject and session.</p>
           </div>

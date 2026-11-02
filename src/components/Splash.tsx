@@ -1,11 +1,9 @@
-import Icon from './Icon';
+import { LogoMark } from './Logo';
 
 export default function Splash() {
   return (
     <div className="splash" role="status" aria-label="Loading">
-      <span className="brand-mark">
-        <Icon name="note" size={22} />
-      </span>
+      <LogoMark size={56} className="splash-mark" />
       <span className="splash-bar" />
     </div>
   );

@@ -6,6 +6,7 @@ import AuthLink from '../components/AuthLink';
 import Icon from '../components/Icon';
 import Sheet from '../components/Sheet';
 import { ShareManager, shareSummary } from '../components/ShareDialog';
+import { BRAND } from '../brand';
 
 const KIND_LABEL = { subject: 'Subject', session: 'Session', items: 'Selected items' } as const;
 
@@ -21,7 +22,7 @@ export default function SharingPage() {
   const [managing, setManaging] = useState<Share | null>(null);
 
   useEffect(() => {
-    document.title = 'Sharing · My lecture notes';
+    document.title = `Sharing · ${BRAND.name}`;
     Promise.all([sharedWithMe(), listMyShares()])
       .then(([i, o]) => {
         setIncoming(i);
@@ -31,7 +32,7 @@ export default function SharingPage() {
         setError(/schema cache|does not exist/.test(e.message) ? 'Sharing is not set up yet: run migrations-008-sharing.sql in Supabase.' : e.message),
       );
     return () => {
-      document.title = 'My lecture notes';
+      document.title = BRAND.name;
     };
   }, []);
 

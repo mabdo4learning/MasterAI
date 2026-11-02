@@ -6,6 +6,7 @@ import { weekStart } from '../lib/time';
 import AuthLink from '../components/AuthLink';
 import Icon from '../components/Icon';
 import { useToast } from '../components/Toast';
+import { BRAND } from '../brand';
 
 const pad = (n: number) => String(n).padStart(2, '0');
 const toKey = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
@@ -30,12 +31,12 @@ export default function CalendarPage() {
   const [hidden, setHidden] = useState<Set<string>>(new Set());
 
   useEffect(() => {
-    document.title = 'Calendar · My lecture notes';
+    document.title = `Calendar · ${BRAND.name}`;
     listAllSessions()
       .then(setSessions)
       .catch((e) => toast(e.message, 'error'));
     return () => {
-      document.title = 'My lecture notes';
+      document.title = BRAND.name;
     };
   }, [toast]);
 

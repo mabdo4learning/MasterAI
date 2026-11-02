@@ -18,6 +18,7 @@ import { useProfile } from '../lib/profile';
 import Icon from './Icon';
 import Sheet from './Sheet';
 import { useToast } from './Toast';
+import { BRAND } from '../brand';
 
 type SessionRef = { id: string; number: number; topic: string };
 type Props = { subject: Subject; session?: SessionRef; onClose: () => void };
@@ -337,7 +338,7 @@ export function ShareManager({
     const body = [
       `Hi${p.name ? ` ${p.name.split(' ')[0]}` : ''},`,
       '',
-      `I shared "${share.title}" from my lecture notes with you. Open it here:`,
+      `I shared "${share.title}" from my ${BRAND.name} notebook with you. Open it here:`,
       link,
       '',
       `Sign in with ${p.email}. It is also under "Shared with you" on your dashboard, and you can copy it into your own notebook.`,
@@ -363,7 +364,7 @@ export function ShareManager({
   };
 
   const nativeShare = () =>
-    navigator.share({ title: share.title, text: `My lecture notes: ${share.title}`, url }).catch(() => {});
+    navigator.share({ title: share.title, text: `${BRAND.name}: ${share.title}`, url }).catch(() => {});
 
   const toggleLink = async () => {
     const next = !share.linkEnabled;

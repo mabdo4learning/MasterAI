@@ -4,6 +4,7 @@ import { greeting } from '../../lib/time';
 import { useProfile } from '../../lib/profile';
 import AuthLink from '../AuthLink';
 import Icon from '../Icon';
+import Logo from '../Logo';
 
 type Props = {
   started: number | null;
@@ -22,10 +23,7 @@ export default function Banner({ started, total, resume }: Props) {
     <header className="banner">
       <div className="banner-glow" aria-hidden />
       <div className="banner-top">
-        <span className="banner-eyebrow">
-          {greeting()}
-          {firstName && `, ${firstName}`}
-        </span>
+        <Logo size={30} className="logo-on-ink" />
         <div className="banner-actions">
           <Link to="/search" className="btn btn-ghost btn-sm" aria-label="Search" title="Search (/)">
             <Icon name="search" size={15} />
@@ -45,7 +43,16 @@ export default function Banner({ started, total, resume }: Props) {
 
       <div className="banner-body">
         <div className="banner-text">
-          <h1>My lecture notes</h1>
+          <span className="banner-eyebrow">Your study notebook</span>
+          <h1>
+            {greeting()}
+            {firstName ? (
+              <>
+                , <em>{firstName}</em>
+              </>
+            ) : null}
+            .
+          </h1>
           <div className="banner-pills">
             {[profile.programme, profile.university, profile.academicYear].filter(Boolean).map((p) => (
               <span key={p}>{p}</span>

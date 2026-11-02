@@ -9,6 +9,7 @@ import Icon from '../components/Icon';
 import SharedSessionView from '../components/SharedSessionView';
 import { Attachments, DetailsInfo } from '../components/SubjectDetails';
 import { useToast } from '../components/Toast';
+import { BRAND } from '../brand';
 
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
 
@@ -37,7 +38,7 @@ export default function SharedViewPage() {
   useEffect(() => {
     if (content) document.title = `${content.title} · Shared`;
     return () => {
-      document.title = 'My lecture notes';
+      document.title = BRAND.name;
     };
   }, [content]);
 

@@ -6,6 +6,7 @@ import AuthLink from '../components/AuthLink';
 import Icon from '../components/Icon';
 import { useToast } from '../components/Toast';
 import NotFound from './NotFound';
+import { BRAND } from '../brand';
 
 type Mode = 'all' | 'missed' | 'fresh';
 type Phase = 'setup' | 'run' | 'done';
@@ -52,7 +53,7 @@ export default function PracticePage() {
       .then(setQuestions)
       .catch((e) => setError(e.message));
     return () => {
-      document.title = 'My lecture notes';
+      document.title = BRAND.name;
     };
   }, [subject]);
 

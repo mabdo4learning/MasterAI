@@ -12,6 +12,7 @@ import SubjectDetails from '../components/SubjectDetails';
 import { STEPS, checklist } from '../lib/checklist';
 import { useToast } from '../components/Toast';
 import NotFound from './NotFound';
+import { BRAND } from '../brand';
 
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
 
@@ -38,9 +39,9 @@ export default function SubjectPage() {
   }, [subject]);
 
   useEffect(() => {
-    if (subject) document.title = `${subject.title} · My lecture notes`;
+    if (subject) document.title = `${subject.title} · ${BRAND.name}`;
     return () => {
-      document.title = 'My lecture notes';
+      document.title = BRAND.name;
     };
   }, [subject]);
 

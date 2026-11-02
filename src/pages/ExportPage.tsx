@@ -7,6 +7,7 @@ import { useProfile } from '../lib/profile';
 import { docType } from '../lib/files';
 import Icon from '../components/Icon';
 import NotFound from './NotFound';
+import { BRAND } from '../brand';
 
 const lectureDate = (d: string) =>
   new Date(`${d}T00:00:00`).toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
@@ -46,7 +47,7 @@ export default function ExportPage() {
       .then(setSessions)
       .catch((e) => setError(e.message));
     return () => {
-      document.title = 'My lecture notes';
+      document.title = BRAND.name;
     };
   }, [subject]);
 

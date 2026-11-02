@@ -14,6 +14,7 @@ import type { BackupProgress } from '../lib/backup';
 import PasswordInput from '../components/PasswordInput';
 import StrengthMeter from '../components/StrengthMeter';
 import { useToast } from '../components/Toast';
+import { BRAND } from '../brand';
 
 const FIELDS: { key: keyof Profile; label: string; placeholder: string; autoComplete?: string }[] = [
   { key: 'name', label: 'Full name', placeholder: 'Your name', autoComplete: 'name' },
@@ -29,9 +30,9 @@ export default function SettingsPage() {
   const email = session?.user.email ?? '';
 
   useEffect(() => {
-    document.title = 'Settings · My lecture notes';
+    document.title = `Settings · ${BRAND.name}`;
     return () => {
-      document.title = 'My lecture notes';
+      document.title = BRAND.name;
     };
   }, []);
 

@@ -41,7 +41,7 @@ export default function Login() {
       <form className="auth-form" onSubmit={submit}>
         <div className="auth-form-head">
           <h2>Welcome back</h2>
-          <p>Sign in to open your lecture notes.</p>
+          <p>Sign in to your notebook.</p>
         </div>
 
         <label className="field">

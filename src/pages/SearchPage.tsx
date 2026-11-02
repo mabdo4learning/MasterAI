@@ -6,6 +6,7 @@ import { timeAgo } from '../lib/time';
 import { docType } from '../lib/files';
 import AuthLink from '../components/AuthLink';
 import Icon from '../components/Icon';
+import { BRAND } from '../brand';
 
 type Kind = SearchHit['kind'] | 'subject';
 
@@ -54,10 +55,10 @@ export default function SearchPage() {
   const terms = useMemo(() => termsOf(q), [q]);
 
   useEffect(() => {
-    document.title = 'Search · My lecture notes';
+    document.title = `Search · ${BRAND.name}`;
     inputRef.current?.focus();
     return () => {
-      document.title = 'My lecture notes';
+      document.title = BRAND.name;
     };
   }, []);
 

@@ -1,6 +1,7 @@
 import { zipSync, strToU8, type Zippable } from 'fflate';
 import { SUBJECTS } from '../subjects';
 import { BUCKET, supabase } from './supabase';
+import { BRAND } from '../brand';
 
 export type BackupProgress = { step: 'data' | 'files' | 'zip'; done: number; total: number };
 
@@ -154,7 +155,7 @@ export async function createBackup(includeFiles: boolean, onProgress: (p: Backup
 
   const exportedAt = new Date().toISOString();
   const backup = {
-    app: 'My lecture notes',
+    app: BRAND.name,
     format: 1,
     exportedAt,
     account: {
@@ -223,7 +224,7 @@ type Backup = {
 
 /** The same content as plain readable text, so the backup is useful without any app. */
 function markdown(b: Backup): string {
-  const out: string[] = ['# My lecture notes', ''];
+  const out: string[] = [`# ${BRAND.name}`, ''];
   const who = [b.account.name, b.account.programme, b.account.university, b.account.academicYear].filter(Boolean);
   if (who.length) out.push(who.join(' · '), '');
   out.push(`Backup from ${stamp(b.exportedAt)}`, '');

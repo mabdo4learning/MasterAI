@@ -6,16 +6,16 @@ export type Subject = {
 };
 
 const LIST: [title: string, color: string][] = [
-  ['Strategic Human Resource Management', '#1D4ED8'],
-  ['Organizational Behavior', '#7C3AED'],
-  ['Personal Development for Leadership and Strategic Management', '#0F766E'],
-  ['Finance for Strategic Managers', '#15803D'],
-  ['Strategic Marketing', '#C2410C'],
-  ['Strategic Planning', '#B45309'],
-  ['International Business Environment', '#0E7490'],
-  ['Research for Strategic Development', '#4338CA'],
-  ['The Foundations of Artificial Intelligence', '#BE185D'],
-  ['Sustainable Artificial Intelligence and Ethics', '#047857'],
+  ['Strategic Human Resource Management', '#2E4F7F'],
+  ['Organizational Behavior', '#6A4577'],
+  ['Personal Development for Leadership and Strategic Management', '#1F6E68'],
+  ['Finance for Strategic Managers', '#2D6A45'],
+  ['Strategic Marketing', '#A4533A'],
+  ['Strategic Planning', '#A07A2E'],
+  ['International Business Environment', '#2A6478'],
+  ['Research for Strategic Development', '#454E86'],
+  ['The Foundations of Artificial Intelligence', '#8E3452'],
+  ['Sustainable Artificial Intelligence and Ethics', '#4F6B3D'],
 ];
 
 const slugify = (s: string) =>
