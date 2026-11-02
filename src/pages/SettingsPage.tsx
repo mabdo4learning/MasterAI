@@ -15,6 +15,7 @@ import PasswordInput from '../components/PasswordInput';
 import StrengthMeter from '../components/StrengthMeter';
 import { useToast } from '../components/Toast';
 import { BRAND } from '../brand';
+import { useSubjects } from '../subjects';
 
 const FIELDS: { key: keyof Profile; label: string; placeholder: string; autoComplete?: string }[] = [
   { key: 'name', label: 'Full name', placeholder: 'Your name', autoComplete: 'name' },
@@ -28,6 +29,7 @@ export default function SettingsPage() {
   const saved = useProfile();
   const toast = useToast();
   const email = session?.user.email ?? '';
+  const subjects = useSubjects();
 
   useEffect(() => {
     document.title = `Settings · ${BRAND.name}`;
@@ -64,6 +66,27 @@ export default function SettingsPage() {
           onSaved={() => toast('Profile saved')}
           onError={(m) => toast(m, 'error')}
         />
+        <section className="card settings-card">
+          <div className="settings-head">
+            <h2>
+              <Icon name="cap" /> Subjects
+            </h2>
+            <p className="muted small">Add, rename, recolour or reorder the subjects in your notebook.</p>
+          </div>
+          <Link to="/settings/subjects" className="subject-summary">
+            <span className="subject-dots" aria-hidden>
+              {subjects.slice(0, 12).map((s) => (
+                <span key={s.slug} style={{ background: s.color }} />
+              ))}
+            </span>
+            <span>
+              {subjects.length ? `${subjects.length} ${subjects.length === 1 ? 'subject' : 'subjects'}` : 'No subjects yet'}
+            </span>
+            <span className="btn btn-ghost btn-sm">
+              Manage <Icon name="arrowRight" size={15} />
+            </span>
+          </Link>
+        </section>
         <AppSettings />
         <BackupSettings onError={(m) => toast(m, 'error')} />
         <PasswordForm onSaved={() => toast('Password changed')} />

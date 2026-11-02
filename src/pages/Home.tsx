@@ -1,6 +1,6 @@
 import { useEffect, useState, type CSSProperties } from 'react';
 import { Link } from 'react-router-dom';
-import { SUBJECTS, findSubject } from '../subjects';
+import { findSubject, useSubjects } from '../subjects';
 import { getDashboard, type Dashboard, type DashboardSession } from '../lib/api';
 import { weekStart } from '../lib/time';
 import Icon from '../components/Icon';
@@ -19,6 +19,7 @@ const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
 export default function Home() {
   const toast = useToast();
   const [data, setData] = useState<Dashboard | null>(null);
+  const SUBJECTS = useSubjects();
 
   useEffect(() => {
     getDashboard()
@@ -93,7 +94,9 @@ export default function Home() {
 
       <div className="section-title">
         <h2>All subjects</h2>
-        <span className="muted small">{SUBJECTS.length} subjects</span>
+        <Link to="/settings/subjects" className="btn btn-ghost btn-sm">
+          <Icon name="pencil" size={14} /> Manage subjects
+        </Link>
       </div>
 
       <main className="subject-grid">

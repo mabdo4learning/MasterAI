@@ -16,6 +16,8 @@ import PracticePage from './pages/PracticePage';
 import SharingPage from './pages/SharingPage';
 import SharedViewPage from './pages/SharedViewPage';
 import JoinSharePage from './pages/JoinSharePage';
+import WelcomePage from './pages/WelcomePage';
+import ManageSubjectsPage from './pages/ManageSubjectsPage';
 import PendingShare from './components/PendingShare';
 import SearchHotkey from './components/SearchHotkey';
 import NotFound from './pages/NotFound';
@@ -41,7 +43,9 @@ createRoot(document.getElementById('root')!).render(
             <Route path="/signup" element={<Signup />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/reset-password" element={<ResetPassword />} />
+            <Route path="/welcome" element={<RequireAuth><WelcomePage /></RequireAuth>} />
             <Route path="/settings" element={<RequireAuth><SettingsPage /></RequireAuth>} />
+            <Route path="/settings/subjects" element={<RequireAuth><ManageSubjectsPage /></RequireAuth>} />
             <Route path="/calendar" element={<RequireAuth><CalendarPage /></RequireAuth>} />
             <Route path="/search" element={<RequireAuth><SearchPage /></RequireAuth>} />
             <Route path="/subjects/:slug" element={<RequireAuth><SubjectPage /></RequireAuth>} />

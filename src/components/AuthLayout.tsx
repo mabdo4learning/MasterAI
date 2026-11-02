@@ -1,5 +1,7 @@
 import type { ReactNode } from 'react';
-import { SUBJECTS } from '../subjects';
+import { PALETTE } from '../subjects';
+
+const TILES = PALETTE.slice(0, 10);
 import Icon from './Icon';
 import Logo from './Logo';
 
@@ -27,10 +29,10 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
             <p>Your Master's notes and lecture images, organised by subject and session.</p>
           </div>
 
-          <div className="subject-mosaic" aria-label={`${SUBJECTS.length} subjects`}>
-            {SUBJECTS.map((s, i) => (
-              <span key={s.slug} title={s.title} style={{ background: s.color, animationDelay: `${i * 45}ms` }}>
-                {s.number}
+          <div className="subject-mosaic" aria-hidden>
+            {TILES.map((c, i) => (
+              <span key={c} style={{ background: c, animationDelay: `${i * 45}ms` }}>
+                {String(i + 1).padStart(2, '0')}
               </span>
             ))}
           </div>
@@ -50,8 +52,8 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
           </ul>
         </div>
         <div className="banner-stripe" aria-hidden>
-          {SUBJECTS.map((s) => (
-            <span key={s.slug} style={{ background: s.color }} />
+          {TILES.map((c) => (
+            <span key={c} style={{ background: c }} />
           ))}
         </div>
       </aside>

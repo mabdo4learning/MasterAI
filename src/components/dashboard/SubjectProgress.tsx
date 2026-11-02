@@ -1,9 +1,10 @@
 import { Link } from 'react-router-dom';
-import { SUBJECTS } from '../../subjects';
+import { useSubjects } from '../../subjects';
 import type { DashboardSession } from '../../lib/api';
 import { STEPS, checklist, stepsDone } from '../../lib/checklist';
 
 export default function SubjectProgress({ sessions }: { sessions: DashboardSession[] | null }) {
+  const SUBJECTS = useSubjects();
   return (
     <section className="card">
       <div className="chart-head">

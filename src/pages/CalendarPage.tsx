@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { SUBJECTS, findSubject } from '../subjects';
+import { findSubject, useSubjects } from '../subjects';
 import { listAllSessions, updateSession, type DashboardSession } from '../lib/api';
 import { weekStart } from '../lib/time';
 import AuthLink from '../components/AuthLink';
@@ -25,6 +25,7 @@ const bySubject = (a: DashboardSession, b: DashboardSession) =>
   subjectOrder(a).localeCompare(subjectOrder(b)) || a.number - b.number;
 
 export default function CalendarPage() {
+  const SUBJECTS = useSubjects();
   const toast = useToast();
   const [params, setParams] = useSearchParams();
   const [sessions, setSessions] = useState<DashboardSession[] | null>(null);
@@ -353,7 +354,8 @@ function ScheduleForm({
   dayKey: string;
   onSchedule: (s: DashboardSession) => Promise<void>;
 }) {
-  const [subjectSlug, setSubjectSlug] = useState(SUBJECTS[0].slug);
+  const SUBJECTS = useSubjects();
+  const [subjectSlug, setSubjectSlug] = useState(SUBJECTS[0]?.slug ?? '');
   const options = sessions.filter((s) => s.subjectSlug === subjectSlug).sort((a, b) => a.number - b.number);
   const firstFree = options.find((s) => !s.lectureDate) ?? options[0];
   const [sessionId, setSessionId] = useState<string | undefined>(firstFree?.id);

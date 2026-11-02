@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { SUBJECTS, findSubject } from '../subjects';
+import { findSubject, useSubjects } from '../subjects';
 import { search, type SearchHit } from '../lib/api';
 import { timeAgo } from '../lib/time';
 import { docType } from '../lib/files';
@@ -44,6 +44,7 @@ const sessionLink = (h: { subjectSlug: string; sessionNumber: number }) =>
   `/subjects/${h.subjectSlug}?session=${h.sessionNumber}`;
 
 export default function SearchPage() {
+  const SUBJECTS = useSubjects();
   const [params, setParams] = useSearchParams();
   const q = params.get('q') ?? '';
   const [input, setInput] = useState(q);
@@ -88,7 +89,7 @@ export default function SearchPage() {
 
   const subjects = useMemo(
     () => (terms.length ? SUBJECTS.filter((s) => terms.every((t) => s.title.toLowerCase().includes(t))) : []),
-    [terms],
+    [terms, SUBJECTS],
   );
 
   const counts: Record<Kind, number> = { subject: subjects.length, session: 0, note: 0, image: 0, document: 0 };

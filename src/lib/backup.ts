@@ -1,5 +1,5 @@
 import { zipSync, strToU8, type Zippable } from 'fflate';
-import { SUBJECTS } from '../subjects';
+import { getSubjects } from '../subjects';
 import { BUCKET, supabase } from './supabase';
 import { BRAND } from '../brand';
 
@@ -98,6 +98,7 @@ export async function createBackup(includeFiles: boolean, onProgress: (p: Backup
   const downloads: { path: string; zipPath: string }[] = [];
 
   const meta = user.user_metadata ?? {};
+  const SUBJECTS = getSubjects();
   const known = new Set(SUBJECTS.map((s) => s.slug));
   const subjects = [
     ...SUBJECTS.map((s) => ({ slug: s.slug, number: s.number, title: s.title })),

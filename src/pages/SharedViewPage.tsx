@@ -42,8 +42,12 @@ export default function SharedViewPage() {
     };
   }, [content]);
 
-  const subject = content ? findSubject(content.subjectSlug) : undefined;
-  const color = subject?.color ?? '#4B5563';
+  const mine = content ? findSubject(content.subjectSlug) : undefined;
+  // Recipients see the owner's subject name and colour; an owner sees their own.
+  const subject = content?.subject
+    ? { title: content.subject.title, color: content.subject.color, number: content.isOwner ? mine?.number : content.subject.title[0]?.toUpperCase() }
+    : mine;
+  const color = subject?.color ?? 'var(--bar)';
   const visible = content ? (content.kind === 'subject' ? content.sessions.filter((s) => !sessionIsEmpty(s)) : content.sessions) : [];
   const hasDetails =
     !!content && content.kind === 'subject' && (!!content.details || content.subjectImages.length + content.subjectDocuments.length > 0);

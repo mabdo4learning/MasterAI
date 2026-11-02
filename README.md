@@ -5,7 +5,7 @@ React + Vite front end, Supabase (database, image storage, login) back end, host
 ## 1. Create the Supabase project
 1. Sign up at https://supabase.com → **New project** (pick a region near you, save the DB password).
 2. **SQL Editor → New query**: paste `supabase/schema.sql` and **Run**. This creates the tables, the per-user
-   security rules, the private `lecture-images` bucket, and a trigger that gives every new account 8 sessions per subject.
+   security rules, the private `lecture-images` bucket, and the per-user `subjects` table. New accounts pick their subjects in an onboarding wizard.
 3. **Authentication → Sign In / Providers**: keep "Allow new users to sign up" on, and choose whether new users must
    confirm their email (see *Sign-ups* below).
 4. **Authentication → URL Configuration**: set *Site URL* to your deployed URL (e.g. your Vercel domain).
@@ -44,6 +44,7 @@ For the session checklist (attended / reviewed), run `supabase/migrations-006-se
 For the question bank and practice mode, run `supabase/migrations-007-questions.sql` before deploying.
 For sharing between accounts, run `supabase/migrations-008-sharing.sql` before deploying.
 For subject details and subject attachments, run `supabase/migrations-009-subject-details.sql` (after 008) before deploying.
+For subjects you set up yourself (and the onboarding wizard), run `supabase/migrations-010-custom-subjects.sql` (after 009) before deploying. Existing accounts keep their ten subjects.
 
 ### Sign-ups
 - Confirmation emails: Supabase's built-in email sender only delivers to your project's team members and is heavily

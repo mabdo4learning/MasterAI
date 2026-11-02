@@ -35,8 +35,8 @@ export default function SharedWithYou() {
           return (
             <li key={s.id}>
               <Link to={`/shared/${s.id}`} className="share-row">
-                <span className="mini-badge" style={{ background: subject?.color ?? '#4B5563' }}>
-                  {subject?.number ?? '·'}
+                <span className="mini-badge" style={{ background: s.subjectColor ?? subject?.color ?? 'var(--bar)' }}>
+                  {s.subjectTitle?.[0]?.toUpperCase() ?? subject?.number ?? '·'}
                 </span>
                 <span className="share-row-text">
                   <strong>{s.title}</strong>

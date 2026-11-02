@@ -36,11 +36,11 @@ export default function SharingPage() {
     };
   }, []);
 
-  const badge = (slug: string) => {
-    const s = findSubject(slug);
+  const badge = (slug: string, owner?: { subjectTitle: string | null; subjectColor: string | null }) => {
+    const s = owner ? null : findSubject(slug);
     return (
-      <span className="mini-badge" style={{ background: s?.color ?? '#4B5563' }}>
-        {s?.number ?? '·'}
+      <span className="mini-badge" style={{ background: owner?.subjectColor ?? s?.color ?? 'var(--bar)' }}>
+        {s?.number ?? owner?.subjectTitle?.[0]?.toUpperCase() ?? '·'}
       </span>
     );
   };
@@ -84,8 +84,8 @@ export default function SharingPage() {
             <ul className="share-cards">
               {incoming?.map((s) => (
                 <li key={s.id}>
-                  <Link to={`/shared/${s.id}`} className="share-row" style={{ '--accent': findSubject(s.subjectSlug)?.color } as CSSProperties}>
-                    {badge(s.subjectSlug)}
+                  <Link to={`/shared/${s.id}`} className="share-row" style={{ '--accent': s.subjectColor ?? findSubject(s.subjectSlug)?.color } as CSSProperties}>
+                    {badge(s.subjectSlug, s)}
                     <span className="share-row-text">
                       <strong>{s.title}</strong>
                       <span className="muted small">

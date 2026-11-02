@@ -153,13 +153,26 @@ export type IncomingShare = {
   ownerName: string;
   via: 'link' | 'email';
   addedAt: string;
+  /** The owner's subject, which the recipient usually doesn't have. */
+  subjectTitle: string | null;
+  subjectColor: string | null;
 };
 
 export async function sharedWithMe(): Promise<IncomingShare[]> {
   const { data, error } = await supabase.rpc('shared_with_me');
   if (error) throw error;
   return (
-    data as { id: string; kind: ShareKind; subject_slug: string; title: string; owner_name: string; via: 'link' | 'email'; added_at: string }[]
+    data as {
+      id: string;
+      kind: ShareKind;
+      subject_slug: string;
+      title: string;
+      owner_name: string;
+      via: 'link' | 'email';
+      added_at: string;
+      subject_title?: string | null;
+      subject_color?: string | null;
+    }[]
   ).map((r) => ({
     id: r.id,
     kind: r.kind,
@@ -168,6 +181,8 @@ export async function sharedWithMe(): Promise<IncomingShare[]> {
     ownerName: r.owner_name,
     via: r.via,
     addedAt: r.added_at,
+    subjectTitle: r.subject_title ?? null,
+    subjectColor: r.subject_color ?? null,
   }));
 }
 
@@ -196,16 +211,21 @@ export type SharedContent = {
   details: SubjectDetails | null;
   subjectImages: LectureImage[];
   subjectDocuments: LectureDocument[];
+  /** The owner's subject (title and colour), so it shows the same for recipients. */
+  subject: { title: string; color: string } | null;
 };
 
-type SharedContentJson = Omit<SharedContent, 'details' | 'subjectImages' | 'subjectDocuments'> & {
+type SharedContentJson = Omit<SharedContent, 'details' | 'subjectImages' | 'subjectDocuments' | 'subject'> & {
   details: Parameters<typeof toDetails>[0];
   files?: (LectureDocument & { kind: 'image' | 'document' })[];
 };
 
 /** The live content of a share, with signed links for its images. */
 export async function getSharedContent(shareId: string): Promise<SharedContent> {
-  const { data, error } = await supabase.rpc('shared_content', { p_share: shareId });
+  const [{ data, error }, subjectInfo] = await Promise.all([
+    supabase.rpc('shared_content', { p_share: shareId }),
+    supabase.rpc('shared_subject', { p_share: shareId }),
+  ]);
   if (error) throw error;
   const { files = [], details, ...content } = data as SharedContentJson;
   const images = files.filter((f) => f.kind === 'image');
@@ -216,6 +236,7 @@ export async function getSharedContent(shareId: string): Promise<SharedContent> 
     details: details ? toDetails(details) : null,
     subjectImages: images.map((f) => ({ id: f.id, path: f.path, fileName: f.fileName, url: urls[f.path] ?? '' })),
     subjectDocuments: files.filter((f) => f.kind === 'document'),
+    subject: (subjectInfo.data as { title: string; color: string } | null) ?? null,
   };
 }
 

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { SUBJECTS, findSubject } from '../subjects';
+import { PALETTE, createSubjects, findSubject, useSubjects } from '../subjects';
 import { listSessions, type LectureSession } from '../lib/api';
 import { copyToNotebook, sessionIsEmpty, type CopyProgress, type CopyResult, type SharedContent } from '../lib/sharing';
 import Icon from './Icon';
@@ -13,7 +13,11 @@ export default function CopyDialog({ content, onClose }: { content: SharedConten
   const whole = content.kind === 'subject';
   const sessions = content.sessions.filter((s) => !sessionIsEmpty(s));
   const single = content.sessions[0];
-  const [slug, setSlug] = useState(findSubject(content.subjectSlug) ? content.subjectSlug : SUBJECTS[0].slug);
+  const subjects = useSubjects();
+  // The owner's subject: copied into one of mine with the same slug, or created as a new subject.
+  const source = content.subject ?? { title: content.subjectSlug, color: PALETTE[0] };
+  const [haveSource] = useState(() => !!findSubject(content.subjectSlug));
+  const [slug, setSlug] = useState(content.subjectSlug);
   const [mine, setMine] = useState<LectureSession[] | null>(null);
   const [number, setNumber] = useState<number>(single?.number ?? 1);
   const [progress, setProgress] = useState<CopyProgress | null>(null);
@@ -28,7 +32,7 @@ export default function CopyDialog({ content, onClose }: { content: SharedConten
         setMine(list);
         // Keep the same session number when it exists, otherwise default to the first empty one.
         setNumber((n) =>
-          list.some((s) => s.number === n)
+          list.length === 0 || list.some((s) => s.number === n)
             ? n
             : (list.find((s) => !s.topic && s.noteCount + s.imageCount + s.documentCount === 0)?.number ?? list[0]?.number ?? 1),
         );
@@ -39,6 +43,10 @@ export default function CopyDialog({ content, onClose }: { content: SharedConten
   const run = async () => {
     setError(null);
     try {
+      // Copying into a subject I don't have yet creates it, with the owner's name and colour.
+      if ((whole || slug === content.subjectSlug) && !findSubject(content.subjectSlug)) {
+        await createSubjects([{ title: source.title, color: source.color, sessions: 0, slug: content.subjectSlug }]);
+      }
       const targets = whole
         ? sessions.map((s) => ({ from: s, subjectSlug: content.subjectSlug, number: s.number }))
         : [{ from: single, subjectSlug: slug, number }];
@@ -89,7 +97,7 @@ export default function CopyDialog({ content, onClose }: { content: SharedConten
         <div className="copy-form">
           {whole ? (
             <p className="muted">
-              Copies {plural(sessions.length, 'session')} with notes or files into your <strong>{target?.title ?? content.subjectSlug}</strong>,
+              Copies {plural(sessions.length, 'session')} with notes or files into {haveSource ? 'your' : 'a new subject,'} <strong>{target?.title ?? source.title}</strong>,
               keeping the same session numbers, along with the subject details and attachments. Anything you already have stays — copies are added next to it, and course info only fills fields you left empty.
             </p>
           ) : (
@@ -102,11 +110,12 @@ export default function CopyDialog({ content, onClose }: { content: SharedConten
                 <label>
                   <span>Subject</span>
                   <select value={slug} onChange={(e) => setSlug(e.target.value)} disabled={busy}>
-                    {SUBJECTS.map((s) => (
+                    {subjects.map((s) => (
                       <option key={s.slug} value={s.slug}>
                         {s.number} · {s.title}
                       </option>
                     ))}
+                    {!haveSource && <option value={content.subjectSlug}>New subject · {source.title}</option>}
                   </select>
                 </label>
                 <label>

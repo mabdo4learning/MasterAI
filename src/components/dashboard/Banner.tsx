@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { SUBJECTS, type Subject } from '../../subjects';
+import { useSubjects, type Subject } from '../../subjects';
 import { greeting } from '../../lib/time';
 import { useProfile } from '../../lib/profile';
 import AuthLink from '../AuthLink';
@@ -14,6 +14,7 @@ type Props = {
 
 export default function Banner({ started, total, resume }: Props) {
   const profile = useProfile();
+  const subjects = useSubjects();
   const firstName = profile.name.split(' ')[0];
   const pct = started !== null && total ? Math.round((started / total) * 100) : null;
   const r = 34;
@@ -69,14 +70,14 @@ export default function Banner({ started, total, resume }: Props) {
                 <Icon name="arrowRight" size={16} />
               </span>
             </Link>
-          ) : (
-            <Link className="banner-cta" to={`/subjects/${SUBJECTS[0].slug}`}>
+          ) : subjects[0] ? (
+            <Link className="banner-cta" to={`/subjects/${subjects[0].slug}`}>
               <span className="banner-cta-label">Get started</span>
               <span className="banner-cta-target">
                 Open your first subject <Icon name="arrowRight" size={16} />
               </span>
             </Link>
-          )}
+          ) : null}
         </div>
 
         <div className="banner-ring" role="img" aria-label={pct === null ? 'Loading progress' : `${pct}% of sessions covered`}>
@@ -101,7 +102,7 @@ export default function Banner({ started, total, resume }: Props) {
       </div>
 
       <div className="banner-stripe" aria-hidden>
-        {SUBJECTS.map((s) => (
+        {subjects.map((s) => (
           <span key={s.slug} style={{ background: s.color }} />
         ))}
       </div>
