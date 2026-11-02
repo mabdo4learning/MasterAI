@@ -14,7 +14,7 @@ import type { BackupProgress } from '../lib/backup';
 import PasswordInput from '../components/PasswordInput';
 import StrengthMeter from '../components/StrengthMeter';
 import { useToast } from '../components/Toast';
-import { BRAND } from '../brand';
+import { BRAND, LEGAL } from '../brand';
 import { useSubjects } from '../subjects';
 import { PRICING, openBillingPortal, planOf, useSubscription } from '../lib/billing';
 import UpgradeSheet from '../components/UpgradeSheet';
@@ -107,6 +107,11 @@ export default function SettingsPage() {
             </button>
           </div>
         </section>
+
+        <p className="settings-legal muted small">
+          <Link to="/privacy">Privacy Policy</Link> · <Link to="/terms">Terms of Service</Link> · To delete your account,
+          email <a href={`mailto:${LEGAL.contactEmail}`}>{LEGAL.contactEmail}</a>
+        </p>
       </div>
     </div>
   );

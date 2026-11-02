@@ -2184,3 +2184,29 @@ button.check-item:hover { border-color: var(--accent); color: var(--text); }
   .lp-prices { grid-template-columns: minmax(0, 1fr); }
   .plan-toggle { grid-template-columns: minmax(0, 1fr); }
 }
+
+/* ---------- Privacy & Terms ---------- */
+.legal-wrap { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 56px; padding-top: 48px; padding-bottom: 88px; }
+.legal-toc { position: sticky; top: 96px; align-self: start; display: grid; gap: 12px; }
+.legal-toc ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; border-left: 1px solid var(--border); }
+.legal-toc a {
+  display: block; padding: 5px 0 5px 14px; margin-left: -1px; border-left: 2px solid transparent;
+  font-size: 14px; font-weight: 600; color: var(--muted); transition: color 0.15s, border-color 0.15s;
+}
+.legal-toc a:hover { color: var(--text); border-left-color: var(--gold); }
+.legal-doc { max-width: 720px; display: grid; gap: 8px; }
+.legal-doc > h1 { font-size: clamp(40px, 5vw, 60px); line-height: 1.02; letter-spacing: -0.03em; color: var(--text-strong); margin: 6px 0 4px; }
+.legal-intro { font-size: 19px; line-height: 1.6; color: var(--muted); padding-bottom: 20px; border-bottom: 1px solid var(--border); margin-bottom: 12px; }
+.legal-doc section { scroll-margin-top: 96px; padding: 18px 0 6px; font-family: var(--serif); font-size: 17px; line-height: 1.7; color: var(--text); }
+.legal-doc section h2 { font-size: 26px; display: flex; align-items: baseline; gap: 12px; margin: 0 0 10px; }
+.legal-num { font-family: var(--display); font-size: 15px; color: var(--gold); font-variant-numeric: lining-nums; }
+.legal-doc section a { color: var(--accent-text); text-decoration: underline; text-underline-offset: 3px; text-decoration-color: color-mix(in srgb, var(--accent) 40%, transparent); }
+.legal-processors li { margin-bottom: 0.5em; }
+.legal-back { margin-top: 32px; }
+.auth-legal { font-size: 13px; color: var(--muted); text-align: center; margin-top: -4px; }
+.auth-legal a, .settings-legal a { color: var(--accent-text); text-decoration: underline; text-underline-offset: 2px; }
+.settings-legal { text-align: center; padding: 8px 0 24px; }
+@media (max-width: 900px) {
+  .legal-wrap { grid-template-columns: minmax(0, 1fr); gap: 24px; padding-top: 28px; }
+  .legal-toc { position: static; padding: 16px 18px; border: 1px solid var(--border); border-radius: 16px; background: var(--card); }
+}

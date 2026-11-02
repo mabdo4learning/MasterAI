@@ -18,6 +18,7 @@ import SharedViewPage from './pages/SharedViewPage';
 import JoinSharePage from './pages/JoinSharePage';
 import WelcomePage from './pages/WelcomePage';
 import ManageSubjectsPage from './pages/ManageSubjectsPage';
+import { PrivacyPage, TermsPage } from './pages/LegalPage';
 import PendingShare from './components/PendingShare';
 import SearchHotkey from './components/SearchHotkey';
 import NotFound from './pages/NotFound';
@@ -54,6 +55,8 @@ createRoot(document.getElementById('root')!).render(
             <Route path="/shared" element={<RequireAuth><SharingPage /></RequireAuth>} />
             <Route path="/shared/:id" element={<RequireAuth><SharedViewPage /></RequireAuth>} />
             <Route path="/share/:token" element={<JoinSharePage />} />
+            <Route path="/privacy" element={<PrivacyPage />} />
+            <Route path="/terms" element={<TermsPage />} />
             <Route path="*" element={<RequireAuth><NotFound /></RequireAuth>} />
           </Routes>
         </BrowserRouter>

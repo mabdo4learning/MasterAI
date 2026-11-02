@@ -386,6 +386,8 @@ export default function LandingPage() {
             © {new Date().getFullYear()} {BRAND.name}. {BRAND.tagline}
           </span>
           <div className="lp-footer-links">
+            <Link to="/privacy">Privacy</Link>
+            <Link to="/terms">Terms</Link>
             <Link to="/login">Sign in</Link>
             <Link to="/signup">Create account</Link>
           </div>

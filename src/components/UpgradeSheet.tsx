@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../lib/auth';
 import { PRICING, billingConfigured, openCheckout, type Plan } from '../lib/billing';
 import { BRAND } from '../brand';
@@ -79,7 +80,8 @@ export default function UpgradeSheet({ onClose, reason }: { onClose: () => void;
             </button>
             <p className="muted small center">
               Secure checkout by Paddle, our reseller. Prices may show in your currency, with tax included where it
-              applies. Cancel any time from Settings.
+              applies. Cancel any time from Settings. By continuing you agree to the <Link to="/terms#pro">Terms</Link> (including
+              the 14-day refund policy) and the <Link to="/privacy">Privacy Policy</Link>.
             </p>
           </>
         ) : (

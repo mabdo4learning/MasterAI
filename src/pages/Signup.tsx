@@ -183,6 +183,10 @@ export default function Signup() {
           )}
         </button>
 
+        <p className="auth-legal">
+          By creating an account you agree to the <Link to="/terms">Terms</Link> and <Link to="/privacy">Privacy Policy</Link>.
+        </p>
+
         <p className="auth-switch">
           Already have an account? <Link to="/login" state={{ from }}>Sign in</Link>
         </p>
