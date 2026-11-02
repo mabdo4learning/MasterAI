@@ -2,7 +2,7 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BrowserRouter, Route, Routes } from 'react-router-dom';
 import { AuthProvider } from './lib/auth';
-import Home from './pages/Home';
+import HomeRoute from './components/HomeRoute';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
 import ForgotPassword from './pages/ForgotPassword';
@@ -38,7 +38,7 @@ createRoot(document.getElementById('root')!).render(
           <SearchHotkey />
           <PendingShare />
           <Routes>
-            <Route path="/" element={<RequireAuth><Home /></RequireAuth>} />
+            <Route path="/" element={<HomeRoute />} />
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<Signup />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
