@@ -24,6 +24,7 @@ import DocumentViewer from './DocumentViewer';
 import Icon from './Icon';
 import Lightbox from './Lightbox';
 import QuestionBank from './QuestionBank';
+import StudyAssistant from './StudyAssistant';
 import ShareDialog from './ShareDialog';
 import { findSubject } from '../subjects';
 import { useToast } from './Toast';
@@ -71,6 +72,7 @@ export default function SessionEditor({ subjectSlug, session, total, canEdit, on
   const [images, setImages] = useState<LectureImage[] | null>(null);
   const [draft, setDraft] = useState('');
   const [composeKey, setComposeKey] = useState(0);
+  const [questionsKey, setQuestionsKey] = useState(0);
   const [addingNote, setAddingNote] = useState(false);
   const [documents, setDocuments] = useState<LectureDocument[] | null>(null);
   const [pending, setPending] = useState<PendingUpload[]>([]);
@@ -532,7 +534,20 @@ export default function SessionEditor({ subjectSlug, session, total, canEdit, on
         )}
       </section>
 
-      <QuestionBank subjectSlug={subjectSlug} sessionId={session.id} canEdit={canEdit} />
+      {canEdit && (
+        <StudyAssistant
+          sessionId={session.id}
+          noteCount={notes?.length ?? 0}
+          onSaveNote={async (markdown) => {
+            const note = await addNote(session.id, markdown);
+            setNotes((list) => [note, ...(list ?? [])]);
+            toast('Summary saved as a note');
+          }}
+          onQuestionsAdded={() => setQuestionsKey((k) => k + 1)}
+        />
+      )}
+
+      <QuestionBank key={`${session.id}-${questionsKey}`} subjectSlug={subjectSlug} sessionId={session.id} canEdit={canEdit} />
 
       <section className={`card images-section${dragging ? ' dragging' : ''}`} {...dragProps}>
         <div className="section-head">

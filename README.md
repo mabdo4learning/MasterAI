@@ -52,6 +52,25 @@ For subjects you set up yourself (and the onboarding wizard), run `supabase/migr
   Email), or add your own SMTP provider (Authentication → Emails → SMTP Settings; e.g. Resend's free tier).
 - To close sign-ups again, turn off "Allow new users to sign up"; existing users keep working.
 
+## Study assistant (AI)
+Each session has a **Study assistant** that turns its notes into a revision summary (saved as a note if you like) or
+exam-style practice questions (added to the question bank). It runs in the `study-assistant` Supabase Edge Function,
+which calls Claude (`claude-opus-5-5`) with your Anthropic API key; the key never reaches the browser.
+
+1. Run `supabase/migrations-011-ai-usage.sql` in the SQL editor (new projects: it's already in `schema.sql`).
+2. Get an API key at https://platform.claude.com, then with the Supabase CLI (`brew install supabase/tap/supabase`):
+   ```bash
+   supabase login
+   supabase link --project-ref <your project ref>
+   supabase secrets set ANTHROPIC_API_KEY=sk-ant-...
+   supabase functions deploy study-assistant
+   ```
+3. Optional secrets: `AI_DAILY_LIMIT` (requests per user per 24 hours, default 40) and `ALLOWED_ORIGINS`
+   (comma-separated, e.g. `https://your-app.vercel.app`; default allows any origin — requests still need a signed-in user).
+
+Every request is logged in `ai_usage` with its token counts, so you can watch spend in the Table Editor. The function
+only reads notes through the signed-in user's own login, so row level security applies to the assistant too.
+
 ## Free-tier notes
 Supabase pauses free projects after ~1 week with no activity; open the site or the dashboard to wake it.
 Storage is 1 GB; large photos are downscaled to max 2400 px before upload.
