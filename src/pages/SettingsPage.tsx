@@ -16,6 +16,8 @@ import StrengthMeter from '../components/StrengthMeter';
 import { useToast } from '../components/Toast';
 import { BRAND } from '../brand';
 import { useSubjects } from '../subjects';
+import { PRICING, openBillingPortal, planOf, useSubscription } from '../lib/billing';
+import UpgradeSheet from '../components/UpgradeSheet';
 
 const FIELDS: { key: keyof Profile; label: string; placeholder: string; autoComplete?: string }[] = [
   { key: 'name', label: 'Full name', placeholder: 'Your name', autoComplete: 'name' },
@@ -66,6 +68,7 @@ export default function SettingsPage() {
           onSaved={() => toast('Profile saved')}
           onError={(m) => toast(m, 'error')}
         />
+        <BillingCard userId={session?.user.id} onError={(m) => toast(m, 'error')} />
         <section className="card settings-card">
           <div className="settings-head">
             <h2>
@@ -289,6 +292,63 @@ const THEMES: { value: ThemeChoice; label: string; icon: IconName }[] = [
   { value: 'light', label: 'Light', icon: 'sun' },
   { value: 'dark', label: 'Dark', icon: 'moon' },
 ];
+
+const longDate = (iso: string) => new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' });
+
+/** Free or Pro: upgrade, or manage the Paddle subscription. */
+function BillingCard({ userId, onError }: { userId?: string; onError: (message: string) => void }) {
+  const { subscription, isPro, loading } = useSubscription(userId);
+  const [upgrading, setUpgrading] = useState(false);
+  const [opening, setOpening] = useState(false);
+  const plan = planOf(subscription);
+
+  const manage = async () => {
+    setOpening(true);
+    try {
+      await openBillingPortal();
+    } catch (e) {
+      onError((e as Error).message);
+      setOpening(false);
+    }
+  };
+
+  let detail = 'The study assistant, revision summaries and AI practice questions come with Pro.';
+  if (subscription?.source === 'comp' && isPro) detail = 'Complimentary Pro on this account.';
+  else if (subscription && isPro) {
+    if (subscription.status === 'past_due') detail = 'Your last payment didn’t go through. Update your card to keep Pro.';
+    else if (subscription.cancelAt) detail = `Cancelled — Pro stays on until ${longDate(subscription.cancelAt)}.`;
+    else if (subscription.currentPeriodEnd) {
+      detail = `${plan ? `${PRICING[plan].amount} / ${PRICING[plan].per} · ` : ''}Renews on ${longDate(subscription.currentPeriodEnd)}.`;
+    }
+  } else if (subscription?.status === 'paused') detail = 'Your subscription is paused.';
+
+  return (
+    <section className="card settings-card" id="billing">
+      <div className="settings-head">
+        <h2>
+          <Icon name="sparkle" /> Plan
+        </h2>
+        <p className="muted small">{loading ? 'Checking your plan…' : detail}</p>
+      </div>
+      <div className="plan-summary">
+        <span className={`plan-chip${isPro ? ' pro' : ''}`}>{loading ? '…' : isPro ? 'Pro' : 'Free'}</span>
+        <div className="settings-actions">
+          {subscription?.source === 'paddle' && (
+            <button className="btn btn-ghost" onClick={manage} disabled={opening}>
+              {opening ? 'Opening…' : 'Manage billing'} <Icon name="external" size={15} />
+            </button>
+          )}
+          {!loading && !isPro && (
+            <button className="btn" onClick={() => setUpgrading(true)}>
+              <Icon name="sparkle" size={16} /> Upgrade to Pro
+            </button>
+          )}
+        </div>
+      </div>
+      {upgrading && <UpgradeSheet onClose={() => setUpgrading(false)} />}
+    </section>
+  );
+}
 
 function AppSettings() {
   const [theme, setTheme] = useTheme();

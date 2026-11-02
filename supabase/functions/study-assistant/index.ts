@@ -9,7 +9,7 @@ import Anthropic from 'npm:@anthropic-ai/sdk@1.3.0';
 import { createClient, type SupabaseClient, type User } from 'npm:@supabase/supabase-js@2.118.0';
 
 const MODEL = 'claude-opus-5-5';
-// Requests per user per rolling 24 hours (set AI_DAILY_LIMIT to change it).
+// Requests per Pro user per rolling 24 hours (set AI_DAILY_LIMIT to change it).
 const DAILY_LIMIT = Number(Deno.env.get('AI_DAILY_LIMIT') ?? '40');
 // About 75k tokens of notes. Longer sessions get a clear error instead of being cut short.
 const MAX_NOTES_CHARS = 300_000;
@@ -153,6 +153,13 @@ Deno.serve(async (req) => {
   const count = Math.min(10, Math.max(3, Number(body.count) || 6));
 
   const admin = createClient(url, serviceKey, { auth: { persistSession: false, autoRefreshToken: false } });
+  // The assistant is part of MasterAI Pro (see migrations-012-subscriptions.sql).
+  const { data: pro, error: proError } = await admin.rpc('is_pro', { p_user: user.id });
+  if (proError) {
+    console.error('is_pro failed', proError);
+    return json(req, 503, { error: 'Couldn’t check your plan. If billing isn’t set up yet, run migrations-012-subscriptions.sql.' });
+  }
+  if (!pro) return json(req, 402, { error: 'The study assistant is part of MasterAI Pro.', code: 'pro_required' });
   const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
   const { count: used } = await admin
     .from('ai_usage')

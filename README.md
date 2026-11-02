@@ -53,7 +53,7 @@ For subjects you set up yourself (and the onboarding wizard), run `supabase/migr
 - To close sign-ups again, turn off "Allow new users to sign up"; existing users keep working.
 
 ## Study assistant (AI)
-Each session has a **Study assistant** that turns its notes into a revision summary (saved as a note if you like) or
+Each session has a **Study assistant** (a Pro feature — see *Payments* below) that turns its notes into a revision summary (saved as a note if you like) or
 exam-style practice questions (added to the question bank). It runs in the `study-assistant` Supabase Edge Function,
 which calls Claude (`claude-opus-5-5`) with your Anthropic API key; the key never reaches the browser.
 
@@ -70,6 +70,36 @@ which calls Claude (`claude-opus-5-5`) with your Anthropic API key; the key neve
 
 Every request is logged in `ai_usage` with its token counts, so you can watch spend in the Table Editor. The function
 only reads notes through the signed-in user's own login, so row level security applies to the assistant too.
+
+## Payments (MasterAI Pro)
+Pro costs $5/month or $40/year and unlocks the study assistant; everything else stays free. Payments go through
+**Paddle Billing**, which is the seller of record: it handles checkout, VAT/sales tax, invoices and payouts.
+
+1. Run `supabase/migrations-012-subscriptions.sql` in the SQL editor (new projects: it's already in `schema.sql`).
+2. In Paddle (start in the **sandbox**, https://sandbox-vendors.paddle.com):
+   - **Catalog → Products:** create *MasterAI Pro* with two recurring prices, $5 monthly and $40 yearly. Copy both `pri_...` ids.
+   - **Developer tools → Authentication:** create a client-side token, and an API key with the
+     `customer_portal_session.write` permission.
+   - **Checkout → Checkout settings:** add your site's domain (and `localhost` for testing) to the approved domains.
+3. Deploy the two billing functions and their secrets:
+   ```bash
+   supabase secrets set PADDLE_API_KEY=pdl_sdbx_apikey_... PADDLE_ENV=sandbox
+   supabase functions deploy billing-portal
+   supabase functions deploy paddle-webhook --no-verify-jwt
+   ```
+4. **Developer tools → Notifications:** add a destination `https://<project-ref>.supabase.co/functions/v1/paddle-webhook`
+   with all `subscription.*` events. Copy its secret key, then `supabase secrets set PADDLE_WEBHOOK_SECRET=pdl_ntfset_...`.
+5. Add `VITE_PADDLE_CLIENT_TOKEN`, `VITE_PADDLE_ENV`, `VITE_PADDLE_PRICE_MONTHLY` and `VITE_PADDLE_PRICE_YEARLY` to `.env`
+   and to Vercel's environment variables (see `.env.example`). Test with Paddle's sandbox test cards.
+6. Going live: repeat 2–5 in the live Paddle account (live token, `pdl_live_apikey_...`, drop `PADDLE_ENV`,
+   `VITE_PADDLE_ENV=production`). If you change the prices, update `PRICING` in `src/lib/billing.ts` to match.
+
+To give an account Pro without paying (yourself, testers), run in the SQL editor:
+```sql
+insert into public.subscriptions (user_id, source, status)
+select id, 'comp', 'active' from auth.users where email = 'you@example.com'
+on conflict (user_id) do update set source = 'comp', status = 'active';
+```
 
 ## Free-tier notes
 Supabase pauses free projects after ~1 week with no activity; open the site or the dashboard to wake it.

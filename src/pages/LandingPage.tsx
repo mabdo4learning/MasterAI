@@ -4,6 +4,7 @@ import { BRAND } from '../brand';
 import { PALETTE } from '../subjects';
 import Logo, { LogoMark } from '../components/Logo';
 import Icon, { type IconName } from '../components/Icon';
+import { PRICING } from '../lib/billing';
 
 const FEATURES: { icon: IconName; title: string; text: string }[] = [
   { icon: 'note', title: 'Notes for every session', text: 'A calm page for each lecture: write as you listen, edit later, find it again in seconds.' },
@@ -41,7 +42,7 @@ const FAQ: { q: string; a: ReactNode }[] = [
   },
   {
     q: 'What does it cost?',
-    a: `${BRAND.name} is free while in early access. If paid plans arrive later, you’ll hear about them well in advance — and your notes stay yours either way.`,
+    a: `Your notebook is free: subjects, sessions, notes, files, the question bank, sharing and exports. ${BRAND.name} Pro adds the study assistant for ${PRICING.monthly.amount} a month or ${PRICING.yearly.amount} a year, and you can cancel any time — your notes stay yours either way.`,
   },
 ];
 
@@ -139,7 +140,7 @@ export default function LandingPage() {
               </div>
               <ul className="lp-assurances">
                 <li>
-                  <Icon name="check" size={15} /> Free in early access
+                  <Icon name="check" size={15} /> Free to start
                 </li>
                 <li>
                   <Icon name="shield" size={15} /> Private by default
@@ -275,34 +276,66 @@ export default function LandingPage() {
             <div className="lp-head reveal">
               <span className="lp-kicker">Pricing</span>
               <h2>
-                Free while we’re in <em>early access</em>.
+                Free to keep. <em>Pro</em> to revise faster.
               </h2>
+              <p>Your notebook is free, for good. Pro adds the study assistant.</p>
             </div>
-            <div className="lp-price reveal">
-              <div className="lp-price-top">
-                <span className="lp-price-name">Early access</span>
-                <span className="lp-price-amount">
-                  <strong>Free</strong>
-                </span>
-                <p className="muted">Everything in {BRAND.name}, for your whole programme.</p>
+            <div className="lp-prices">
+              <div className="lp-price reveal">
+                <div className="lp-price-top">
+                  <span className="lp-price-name">Free</span>
+                  <span className="lp-price-amount">
+                    <strong>$0</strong>
+                  </span>
+                  <p className="muted">Everything you need to keep every lecture.</p>
+                </div>
+                <ul className="lp-ticks">
+                  <li>
+                    <Icon name="check" size={16} /> Unlimited subjects and sessions
+                  </li>
+                  <li>
+                    <Icon name="check" size={16} /> Rich notes, images and documents
+                  </li>
+                  <li>
+                    <Icon name="check" size={16} /> Question bank and practice mode
+                  </li>
+                  <li>
+                    <Icon name="check" size={16} /> Sharing, PDF export and full backups
+                  </li>
+                </ul>
+                <Link to="/signup" className="btn btn-ghost btn-lg">
+                  Create your free account
+                </Link>
               </div>
-              <ul className="lp-ticks">
-                <li>
-                  <Icon name="check" size={16} /> Unlimited subjects and sessions
-                </li>
-                <li>
-                  <Icon name="check" size={16} /> Notes, images and documents
-                </li>
-                <li>
-                  <Icon name="check" size={16} /> Question bank and practice mode
-                </li>
-                <li>
-                  <Icon name="check" size={16} /> Sharing, PDF export and full backups
-                </li>
-              </ul>
-              <Link to="/signup" className="btn btn-lg">
-                Create your free account <Icon name="arrowRight" size={16} />
-              </Link>
+              <div className="lp-price lp-price-pro reveal">
+                <span className="plan-badge">Most popular</span>
+                <div className="lp-price-top">
+                  <span className="lp-price-name">Pro</span>
+                  <span className="lp-price-amount">
+                    <strong>{PRICING.monthly.amount}</strong> <span className="lp-per">/ {PRICING.monthly.per}</span>
+                  </span>
+                  <p className="muted">
+                    or {PRICING.yearly.amount} / {PRICING.yearly.per} — save a third.
+                  </p>
+                </div>
+                <ul className="lp-ticks">
+                  <li>
+                    <Icon name="check" size={16} /> Everything in Free
+                  </li>
+                  <li>
+                    <Icon name="sparkle" size={16} /> Study assistant: revision summaries from your notes
+                  </li>
+                  <li>
+                    <Icon name="sparkle" size={16} /> AI practice questions with model answers
+                  </li>
+                  <li>
+                    <Icon name="check" size={16} /> Cancel any time
+                  </li>
+                </ul>
+                <Link to="/signup" className="btn btn-lg">
+                  Start free, upgrade any time <Icon name="arrowRight" size={16} />
+                </Link>
+              </div>
             </div>
           </div>
         </section>

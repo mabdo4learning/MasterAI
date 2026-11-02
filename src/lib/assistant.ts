@@ -8,6 +8,9 @@ const ENDPOINT = `${import.meta.env.VITE_SUPABASE_URL as string}/functions/v1/st
 
 export type SuggestedQuestion = { question: string; answer: string };
 
+/** The account isn't on Pro (the function answered 402). */
+export class ProRequiredError extends Error {}
+
 async function call(body: Record<string, unknown>, signal?: AbortSignal): Promise<Response> {
   const { data } = await supabase.auth.getSession();
   const token = data.session?.access_token;
@@ -29,7 +32,8 @@ async function call(body: Record<string, unknown>, signal?: AbortSignal): Promis
     throw new Error('Couldn’t reach the study assistant. Check your connection and try again.');
   }
   if (!res.ok) {
-    const detail = (await res.json().catch(() => null)) as { error?: string; message?: string } | null;
+    const detail = (await res.json().catch(() => null)) as { error?: string; message?: string; code?: string } | null;
+    if (detail?.code === 'pro_required') throw new ProRequiredError(detail.error ?? 'This is part of Pro.');
     if (res.status === 404 && !detail?.error) {
       throw new Error('The study assistant isn’t deployed yet: deploy supabase/functions/study-assistant (see README).');
     }

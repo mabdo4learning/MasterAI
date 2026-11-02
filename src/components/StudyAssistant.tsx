@@ -1,6 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { addQuestion } from '../lib/api';
-import { streamSummary, suggestQuestions, type SuggestedQuestion } from '../lib/assistant';
+import { ProRequiredError, streamSummary, suggestQuestions, type SuggestedQuestion } from '../lib/assistant';
+import { useAuth } from '../lib/auth';
+import { refreshSubscription, useSubscription } from '../lib/billing';
+import UpgradeSheet from './UpgradeSheet';
 import NoteContent from './NoteContent';
 import Icon from './Icon';
 import { useToast } from './Toast';
@@ -27,6 +30,18 @@ export default function StudyAssistant({ sessionId, noteCount, onSaveNote, onQue
   const [state, setState] = useState<State>({ kind: 'idle' });
   const [saving, setSaving] = useState(false);
   const abort = useRef<AbortController | null>(null);
+  const { session } = useAuth();
+  const { isPro, loading: planLoading } = useSubscription(session?.user.id);
+  const [upgrading, setUpgrading] = useState(false);
+
+  // The server said this account isn't Pro (e.g. just cancelled): refresh and show the upgrade.
+  const proRequired = (e: unknown) => {
+    if (!(e instanceof ProRequiredError)) return false;
+    if (session) void refreshSubscription(session.user.id);
+    setState({ kind: 'idle' });
+    setUpgrading(true);
+    return true;
+  };
 
   // A new session starts fresh; leaving stops a summary that's still being written.
   useEffect(() => {
@@ -51,6 +66,7 @@ export default function StudyAssistant({ sessionId, noteCount, onSaveNote, onQue
       );
       setState({ kind: 'summary', text, streaming: false, truncated });
     } catch (e) {
+      if (proRequired(e)) return;
       if ((e as Error).name === 'AbortError') {
         setState(text ? { kind: 'summary', text, streaming: false, truncated: true } : { kind: 'idle' });
       } else {
@@ -65,6 +81,7 @@ export default function StudyAssistant({ sessionId, noteCount, onSaveNote, onQue
       const items = await suggestQuestions(sessionId);
       setState({ kind: 'questions', items, picked: new Set(items.map((_, i) => i)) });
     } catch (e) {
+      if (proRequired(e)) return;
       setState({ kind: 'error', message: (e as Error).message, retry: questions });
     }
   };
@@ -119,7 +136,21 @@ export default function StudyAssistant({ sessionId, noteCount, onSaveNote, onQue
         )}
       </div>
 
-      {state.kind === 'idle' && (
+      {state.kind === 'idle' && !planLoading && !isPro && (
+        <div className="assistant-idle">
+          <p className="muted">
+            Turn this session’s notes into a revision summary or exam-style practice questions —{' '}
+            <span className="pro-pill">Pro</span>
+          </p>
+          <div className="assistant-actions">
+            <button className="btn" onClick={() => setUpgrading(true)}>
+              <Icon name="sparkle" size={16} /> Upgrade to Pro
+            </button>
+          </div>
+        </div>
+      )}
+
+      {state.kind === 'idle' && (planLoading || isPro) && (
         <div className="assistant-idle">
           <p className="muted">
             {empty
@@ -127,10 +158,10 @@ export default function StudyAssistant({ sessionId, noteCount, onSaveNote, onQue
               : 'Turn this session’s notes into a revision summary or exam-style practice questions.'}
           </p>
           <div className="assistant-actions">
-            <button className="btn" onClick={summarise} disabled={empty}>
+            <button className="btn" onClick={summarise} disabled={empty || planLoading}>
               <Icon name="note" size={16} /> Summarise notes
             </button>
-            <button className="btn btn-outline" onClick={questions} disabled={empty}>
+            <button className="btn btn-outline" onClick={questions} disabled={empty || planLoading}>
               <Icon name="help" size={16} /> Suggest questions
             </button>
           </div>
@@ -241,6 +272,7 @@ export default function StudyAssistant({ sessionId, noteCount, onSaveNote, onQue
           </div>
         </div>
       )}
+      {upgrading && <UpgradeSheet onClose={() => setUpgrading(false)} reason="The study assistant is part of Pro." />}
     </section>
   );
 }
