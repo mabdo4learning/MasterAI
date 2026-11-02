@@ -19,6 +19,7 @@ import Icon from './Icon';
 import Sheet from './Sheet';
 import { useToast } from './Toast';
 import { BRAND } from '../brand';
+import { plainText } from '../lib/markdown';
 
 type SessionRef = { id: string; number: number; topic: string };
 type Props = { subject: Subject; session?: SessionRef; onClose: () => void };
@@ -267,7 +268,7 @@ function CreateShare({
                     <label className="pick">
                       <input type="checkbox" checked={picked.has(n.id)} onChange={() => toggle(n.id)} />
                       <Icon name="note" size={15} />
-                      <span className="pick-text">{n.body}</span>
+                      <span className="pick-text">{plainText(n.body)}</span>
                     </label>
                   </li>
                 ))}

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ChangeEvent, type DragEvent, type KeyboardEvent } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState, type ChangeEvent, type DragEvent } from 'react';
 import {
   addNote,
   deleteDocument,
@@ -27,6 +27,11 @@ import QuestionBank from './QuestionBank';
 import ShareDialog from './ShareDialog';
 import { findSubject } from '../subjects';
 import { useToast } from './Toast';
+import NoteContent from './NoteContent';
+
+// The editor (Tiptap) is only downloaded when someone can write notes.
+const RichEditor = lazy(() => import('./RichEditor'));
+const EditorFallback = () => <div className="rich-editor rich-loading skeleton-block" aria-hidden />;
 
 type Props = {
   subjectSlug: string;
@@ -50,13 +55,6 @@ const formatDate = (d: string) =>
 const formatShortDate = (iso: string) =>
   new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
 
-/** Grow a textarea to fit its text, so long notes don't need an inner scrollbar. */
-const fitHeight = (el: HTMLTextAreaElement | null) => {
-  if (!el) return;
-  el.style.height = 'auto';
-  el.style.height = `${el.scrollHeight + 2}px`;
-};
-
 /** Phone cameras name every shot "image.jpg"; give photos a readable, unique name instead. */
 const photoName = (file: File, i: number) => {
   const stamp = new Date().toISOString().slice(0, 19).replace(/[T:]/g, '-');
@@ -72,6 +70,7 @@ export default function SessionEditor({ subjectSlug, session, total, canEdit, on
   const [notes, setNotes] = useState<Note[] | null>(null);
   const [images, setImages] = useState<LectureImage[] | null>(null);
   const [draft, setDraft] = useState('');
+  const [composeKey, setComposeKey] = useState(0);
   const [addingNote, setAddingNote] = useState(false);
   const [documents, setDocuments] = useState<LectureDocument[] | null>(null);
   const [pending, setPending] = useState<PendingUpload[]>([]);
@@ -87,7 +86,6 @@ export default function SessionEditor({ subjectSlug, session, total, canEdit, on
   const timer = useRef<number | undefined>(undefined);
   const fileInput = useRef<HTMLInputElement>(null);
   const cameraInput = useRef<HTMLInputElement>(null);
-  const textarea = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     listNotes(session.id).then(setNotes).catch((e) => toast(e.message, 'error'));
@@ -143,8 +141,6 @@ export default function SessionEditor({ subjectSlug, session, total, canEdit, on
     queueSave({ lecture_date: value || null });
   };
 
-  const autoGrow = () => fitHeight(textarea.current);
-
   const toggleStep = async (key: 'attended' | 'reviewed') => {
     const value = !session[key];
     onPatch({ [key]: value });
@@ -167,19 +163,12 @@ export default function SessionEditor({ subjectSlug, session, total, canEdit, on
       const note = await addNote(session.id, body);
       setNotes((list) => [note, ...(list ?? [])]);
       setDraft('');
-      requestAnimationFrame(autoGrow);
+      setComposeKey((k) => k + 1);
       toast('Note added');
     } catch (e) {
       toast((e as Error).message, 'error');
     } finally {
       setAddingNote(false);
-    }
-  };
-
-  const onDraftKey = (e: KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
-      e.preventDefault();
-      submitNote();
     }
   };
 
@@ -214,14 +203,6 @@ export default function SessionEditor({ subjectSlug, session, total, canEdit, on
     }
   };
 
-  const onEditKey = (e: KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
-      e.preventDefault();
-      saveEdit();
-    } else if (e.key === 'Escape') {
-      setEditing(null);
-    }
-  };
 
   const uploadFiles = async (files: File[]) => {
     const unsupported = files.filter((f) => !fileKind(f));
@@ -460,17 +441,16 @@ export default function SessionEditor({ subjectSlug, session, total, canEdit, on
 
         {canEdit && (
           <div className="note-compose">
-            <textarea
-              ref={textarea}
-              value={draft}
-              rows={3}
-              placeholder="Write a note…"
-              onChange={(e) => {
-                setDraft(e.target.value);
-                autoGrow();
-              }}
-              onKeyDown={onDraftKey}
-            />
+            <Suspense fallback={<EditorFallback />}>
+              <RichEditor
+                key={`${session.id}-${composeKey}`}
+                onChange={setDraft}
+                onSubmit={submitNote}
+                disabled={addingNote}
+                placeholder="Write a note… Type # for a heading, - for a list, [ ] for a checklist"
+                label="New note"
+              />
+            </Suspense>
             <div className="compose-actions">
               <span className="muted small hide-mobile">
                 <kbd>⌘</kbd> + <kbd>Enter</kbd> to add
@@ -495,18 +475,17 @@ export default function SessionEditor({ subjectSlug, session, total, canEdit, on
             {notes.map((n) =>
               editing?.id === n.id ? (
                 <li key={n.id} className="note editing">
-                  <textarea
-                    ref={(el) => fitHeight(el)}
-                    value={editing.body}
-                    autoFocus
-                    aria-label="Edit note"
-                    onFocus={(e) => e.currentTarget.setSelectionRange(e.currentTarget.value.length, e.currentTarget.value.length)}
-                    onChange={(e) => {
-                      setEditing({ id: n.id, body: e.target.value });
-                      fitHeight(e.target);
-                    }}
-                    onKeyDown={onEditKey}
-                  />
+                  <Suspense fallback={<EditorFallback />}>
+                    <RichEditor
+                      initial={n.body}
+                      autoFocus
+                      label="Edit note"
+                      disabled={savingEdit}
+                      onChange={(body) => setEditing({ id: n.id, body })}
+                      onSubmit={saveEdit}
+                      onCancel={() => setEditing(null)}
+                    />
+                  </Suspense>
                   <div className="compose-actions">
                     <span className="muted small hide-mobile">
                       <kbd>Esc</kbd> to cancel
@@ -545,7 +524,7 @@ export default function SessionEditor({ subjectSlug, session, total, canEdit, on
                       </span>
                     )}
                   </div>
-                  <p className="note-body">{n.body}</p>
+                  <NoteContent markdown={n.body} />
                 </li>
               ),
             )}

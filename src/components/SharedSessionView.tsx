@@ -6,6 +6,7 @@ import DocumentViewer from './DocumentViewer';
 import Icon from './Icon';
 import Lightbox from './Lightbox';
 import { useToast } from './Toast';
+import NoteContent from './NoteContent';
 
 const formatStamp = (iso: string) =>
   new Date(iso).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
@@ -73,7 +74,7 @@ export default function SharedSessionView({ session, partial }: { session: Share
                       {n.updatedAt && <span className="note-edited">· edited</span>}
                     </span>
                   </div>
-                  <p className="note-body">{n.body}</p>
+                  <NoteContent markdown={n.body} />
                 </li>
               ))}
             </ul>

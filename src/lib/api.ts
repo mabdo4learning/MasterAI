@@ -1,6 +1,7 @@
 import { BUCKET, supabase } from './supabase';
 import { shrinkImage } from './resize';
 import { docType, extOf } from './files';
+import { plainText } from './markdown';
 
 export type LectureSession = {
   id: string;
@@ -227,7 +228,7 @@ export async function getDashboard(): Promise<Dashboard> {
         createdAt: n.created_at,
         subjectSlug: n.session?.subject_slug ?? '',
         sessionNumber: n.session?.number ?? 0,
-        text: n.body,
+        text: plainText(n.body),
       }),
     ),
     ...imageRows.map((i) => ({
@@ -471,7 +472,7 @@ export async function search(terms: string[]): Promise<SearchHit[]> {
         id: n.id,
         subjectSlug: n.session?.subject_slug ?? '',
         sessionNumber: n.session?.number ?? 0,
-        text: n.body,
+        text: plainText(n.body),
         createdAt: n.created_at,
       }),
     ),

@@ -8,6 +8,7 @@ import { docType } from '../lib/files';
 import Icon from '../components/Icon';
 import NotFound from './NotFound';
 import { BRAND } from '../brand';
+import NoteContent from '../components/NoteContent';
 
 const lectureDate = (d: string) =>
   new Date(`${d}T00:00:00`).toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
@@ -128,7 +129,7 @@ export default function ExportPage() {
               <div className="export-notes">
                 {s.notes.map((n) => (
                   <div key={n.id} className="export-note">
-                    <p className="note-body">{n.body}</p>
+                    <NoteContent markdown={n.body} />
                     <time dateTime={n.createdAt}>{stamp(n.createdAt)}</time>
                   </div>
                 ))}
