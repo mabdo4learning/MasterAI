@@ -24,16 +24,19 @@ import SearchHotkey from './components/SearchHotkey';
 import NotFound from './pages/NotFound';
 import { ToastProvider } from './components/Toast';
 import RequireAuth from './components/RequireAuth';
-import { initTheme } from './lib/theme';
+import { initAccent, initTheme } from './lib/theme';
+import AccentSync from './components/AccentSync';
 import { initInstall } from './lib/install';
 import './styles.css';
 
 initTheme();
+initAccent();
 initInstall();
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <AuthProvider>
+      <AccentSync />
       <ToastProvider>
         <BrowserRouter>
           <SearchHotkey />

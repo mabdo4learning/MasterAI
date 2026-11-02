@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "accents": "node --experimental-strip-types --no-warnings scripts/accents-css.mjs"
   },
   "dependencies": {
     "@paddle/paddle-js": "1.6.5",

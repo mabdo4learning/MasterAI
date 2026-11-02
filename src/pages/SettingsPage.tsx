@@ -6,7 +6,8 @@ import { initials, useProfile, type Profile } from '../lib/profile';
 import { MIN_PASSWORD, strength } from '../lib/password';
 import AuthLink from '../components/AuthLink';
 import Icon, { type IconName } from '../components/Icon';
-import { useTheme, type ThemeChoice } from '../lib/theme';
+import { useAccent, useTheme, type ThemeChoice } from '../lib/theme';
+import { ACCENTS } from '../lib/accents';
 import { useInstall } from '../lib/install';
 import { todayKey } from '../lib/exams';
 import { formatBytes } from '../lib/files';
@@ -90,6 +91,7 @@ export default function SettingsPage() {
             </span>
           </Link>
         </section>
+        <ColourSettings onError={(m) => toast(m, 'error')} />
         <AppSettings />
         <BackupSettings onError={(m) => toast(m, 'error')} />
         <PasswordForm onSaved={() => toast('Password changed')} />
@@ -351,6 +353,56 @@ function BillingCard({ userId, onError }: { userId?: string; onError: (message: 
         </div>
       </div>
       {upgrading && <UpgradeSheet onClose={() => setUpgrading(false)} />}
+    </section>
+  );
+}
+
+/** The colour theme: accent, banner ink and highlight. Saved on the account. */
+export function ColourSettings({ onError }: { onError: (message: string) => void }) {
+  const [accent, setAccent] = useAccent();
+  const choose = (id: string) => setAccent(id).catch((e) => onError(`Couldn’t save your colour: ${(e as Error).message}`));
+
+  return (
+    <section className="card settings-card">
+      <div className="settings-head">
+        <h2>
+          <Icon name="sparkle" /> Colour theme
+        </h2>
+        <p className="muted small">Sets the colour of buttons, links and your dashboard banner. Saved on your account, so it follows you to every device.</p>
+      </div>
+      <div className="accent-grid" role="radiogroup" aria-label="Colour theme">
+        {ACCENTS.map((a) => (
+          <button
+            key={a.id}
+            type="button"
+            role="radio"
+            aria-checked={accent === a.id}
+            className={`accent-option${accent === a.id ? ' selected' : ''}`}
+            onClick={() => choose(a.id)}
+          >
+            <span
+              className="accent-preview"
+              aria-hidden
+              style={{ background: `linear-gradient(135deg, ${a.ink.hi} 0%, ${a.ink.deep} 60%, ${a.ink.lo} 100%)` }}
+            >
+              <span className="accent-preview-glow" style={{ background: `radial-gradient(60px 40px at 90% 0%, rgba(${a.glow}, 0.45), transparent 70%)` }} />
+              <span className="accent-preview-line" style={{ background: a.onInk.text }} />
+              <span className="accent-preview-line short" style={{ background: 'rgba(255,255,255,0.35)' }} />
+              <span className="accent-preview-ring" style={{ borderColor: a.onInk.ring }} />
+              <span className="accent-preview-btn" style={{ background: a.light.accent }} />
+            </span>
+            <span className="accent-text">
+              <strong>{a.name}</strong>
+              <span className="muted small">{a.note}</span>
+            </span>
+            {accent === a.id && (
+              <span className="accent-check">
+                <Icon name="check" size={13} />
+              </span>
+            )}
+          </button>
+        ))}
+      </div>
     </section>
   );
 }

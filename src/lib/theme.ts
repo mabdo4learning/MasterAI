@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { DEFAULT_ACCENT, findAccent } from './accents';
 
 export type ThemeChoice = 'system' | 'light' | 'dark';
 
@@ -48,4 +49,56 @@ export function useTheme(): [ThemeChoice, (choice: ThemeChoice) => void] {
   }, [choice]);
 
   return [choice, setChoice];
+}
+
+// ---------- Colour theme (accent) ----------
+// Saved on the account (user_metadata.accent) so it follows you to every device, and cached
+// per device under ACCENT_KEY so index.html can apply it before the first paint.
+const ACCENT_KEY = 'accent';
+const accentListeners = new Set<() => void>();
+
+export function savedAccent(): string {
+  try {
+    return localStorage.getItem(ACCENT_KEY) || DEFAULT_ACCENT;
+  } catch {
+    return DEFAULT_ACCENT;
+  }
+}
+
+/** Applies a colour theme on this device (no account change). */
+export function applyAccent(id: string) {
+  const accent = findAccent(id).id;
+  const root = document.documentElement;
+  if (accent === DEFAULT_ACCENT) delete root.dataset.accent;
+  else root.dataset.accent = accent;
+  try {
+    if (accent === DEFAULT_ACCENT) localStorage.removeItem(ACCENT_KEY);
+    else localStorage.setItem(ACCENT_KEY, accent);
+  } catch {
+    // Storage blocked: the theme still applies for this visit.
+  }
+  accentListeners.forEach((l) => l());
+}
+
+export function initAccent() {
+  applyAccent(savedAccent());
+}
+
+/** The current colour theme, and a setter that applies it and saves it to the account. */
+export function useAccent(): [string, (id: string) => Promise<void>] {
+  const [accent, setAccent] = useState(savedAccent);
+  useEffect(() => {
+    const update = () => setAccent(savedAccent());
+    accentListeners.add(update);
+    return () => {
+      accentListeners.delete(update);
+    };
+  }, []);
+  const choose = async (id: string) => {
+    applyAccent(id);
+    const { supabase } = await import('./supabase');
+    const { error } = await supabase.auth.updateUser({ data: { accent: findAccent(id).id } });
+    if (error) throw error;
+  };
+  return [accent, choose];
 }

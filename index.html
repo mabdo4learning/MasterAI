@@ -18,10 +18,12 @@
     <meta name="apple-mobile-web-app-title" content="MasterAI" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <script>
-      // Apply the saved theme before the page paints (see src/lib/theme.ts).
+      // Apply the saved theme and colour before the page paints (see src/lib/theme.ts).
       try {
         var t = localStorage.getItem("theme");
         if (t === "light" || t === "dark") document.documentElement.dataset.theme = t;
+        var a = localStorage.getItem("accent");
+        if (a && /^[a-z]+$/.test(a)) document.documentElement.dataset.accent = a;
       } catch (e) {}
     </script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
