@@ -79,7 +79,7 @@ Pro costs $5/month or $40/year and unlocks the study assistant; everything else 
 2. In Paddle (start in the **sandbox**, https://sandbox-vendors.paddle.com):
    - **Catalog → Products:** create *MasterAI Pro* with two recurring prices, $5 monthly and $40 yearly. Copy both `pri_...` ids.
    - **Developer tools → Authentication:** create a client-side token, and an API key with the
-     `customer_portal_session.write` permission.
+     `customer_portal_session.write` and `subscription.write` permissions (the second lets account deletion cancel a subscription).
    - **Checkout → Checkout settings:** add your site's domain (and `localhost` for testing) to the approved domains.
 3. Deploy the two billing functions and their secrets:
    ```bash
@@ -99,6 +99,14 @@ To give an account Pro without paying (yourself, testers), run in the SQL editor
 insert into public.subscriptions (user_id, source, status)
 select id, 'comp', 'active' from auth.users where email = 'you@example.com'
 on conflict (user_id) do update set source = 'comp', status = 'active';
+```
+
+## Account deletion
+Users can delete their account in **Settings → Delete account**. The `delete-account` Edge Function checks their password
+again, cancels a live Paddle subscription immediately (it stops without deleting anything if that fails), removes their
+files from storage, and deletes the auth user; every table cascades from `auth.users`, so all their rows go with it.
+```bash
+supabase functions deploy delete-account
 ```
 
 ## Free-tier notes

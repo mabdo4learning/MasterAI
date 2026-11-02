@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/auth';
 import { initials, useProfile, type Profile } from '../lib/profile';
@@ -19,6 +19,8 @@ import { BRAND, LEGAL } from '../brand';
 import { useSubjects } from '../subjects';
 import { PRICING, openBillingPortal, planOf, useSubscription } from '../lib/billing';
 import UpgradeSheet from '../components/UpgradeSheet';
+import Sheet from '../components/Sheet';
+import { deleteAccount } from '../lib/account';
 
 const FIELDS: { key: keyof Profile; label: string; placeholder: string; autoComplete?: string }[] = [
   { key: 'name', label: 'Full name', placeholder: 'Your name', autoComplete: 'name' },
@@ -110,9 +112,11 @@ export default function SettingsPage() {
           </div>
         </section>
 
+        <DeleteAccountCard email={email} />
+
         <p className="settings-legal muted small">
-          <Link to="/privacy">Privacy Policy</Link> · <Link to="/terms">Terms of Service</Link> · To delete your account,
-          email <a href={`mailto:${LEGAL.contactEmail}`}>{LEGAL.contactEmail}</a>
+          <Link to="/privacy">Privacy Policy</Link> · <Link to="/terms">Terms of Service</Link> · Questions?{' '}
+          <a href={`mailto:${LEGAL.contactEmail}`}>{LEGAL.contactEmail}</a>
         </p>
       </div>
     </div>
@@ -407,6 +411,89 @@ export function ColourSettings({ onError }: { onError: (message: string) => void
   );
 }
 
+/** Permanently deletes the account, after the password is entered again. */
+function DeleteAccountCard({ email }: { email: string }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <section className="card settings-card danger-card">
+      <div className="settings-head">
+        <h2>
+          <Icon name="trash" /> Delete account
+        </h2>
+        <p className="muted small">
+          Permanently delete your account with all its subjects, notes, files and shares. A Pro subscription is cancelled
+          at the same time.
+        </p>
+      </div>
+      <div className="settings-actions">
+        <button className="btn btn-outline danger-outline" onClick={() => setOpen(true)}>
+          <Icon name="trash" size={16} /> Delete my account
+        </button>
+      </div>
+      {open && <DeleteAccountSheet email={email} onClose={() => setOpen(false)} />}
+    </section>
+  );
+}
+
+export function DeleteAccountSheet({ email, onClose }: { email: string; onClose: () => void }) {
+  const toast = useToast();
+  const navigate = useNavigate();
+  const [password, setPassword] = useState('');
+  const [understood, setUnderstood] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const submit = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!password || !understood) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await deleteAccount(password);
+      toast('Your account and everything in it has been deleted.');
+      navigate('/', { replace: true });
+    } catch (err) {
+      setError((err as Error).message);
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Sheet title="Delete your account?" onClose={busy ? () => {} : onClose}>
+      <form className="copy-form" onSubmit={submit}>
+        <p className="muted">This permanently deletes <strong>{email}</strong> and can’t be undone:</p>
+        <ul className="delete-list">
+          <li>every subject, session, note, image, document and practice question</li>
+          <li>course details, your checklist and exam dates</li>
+          <li>everything you’ve shared — people you shared with lose access</li>
+          <li>your Pro subscription, which is cancelled immediately with no further charges</li>
+        </ul>
+        <p className="muted small">
+          Want a copy first? <a href="#backup" onClick={onClose}>Download a backup</a> before you continue. Paddle keeps its
+          own payment records, as the law requires.
+        </p>
+        <label className="field">
+          <span>Your password</span>
+          <PasswordInput value={password} onChange={setPassword} autoComplete="current-password" placeholder="Enter your password" />
+        </label>
+        <label className="check-line">
+          <input type="checkbox" checked={understood} onChange={(e) => setUnderstood(e.target.checked)} disabled={busy} />
+          <span>I understand my notebook will be permanently deleted.</span>
+        </label>
+        {error && <p className="error small">{error}</p>}
+        <div className="compose-actions">
+          <button type="button" className="btn btn-ghost" onClick={onClose} disabled={busy}>
+            Keep my account
+          </button>
+          <button className="btn danger-fill" disabled={busy || !password || !understood}>
+            <Icon name="trash" size={15} /> {busy ? 'Deleting…' : 'Delete everything'}
+          </button>
+        </div>
+      </form>
+    </Sheet>
+  );
+}
+
 function AppSettings() {
   const [theme, setTheme] = useTheme();
   const { state, install } = useInstall();
@@ -528,7 +615,7 @@ function BackupSettings({ onError }: { onError: (message: string) => void }) {
   const percent = progress && progress.total > 0 ? (progress.done / progress.total) * 100 : 0;
 
   return (
-    <section className="card settings-card">
+    <section className="card settings-card" id="backup">
       <div className="settings-head">
         <h2>
           <Icon name="download" /> Backup

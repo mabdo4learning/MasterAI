@@ -264,8 +264,9 @@ const PRIVACY: Section[] = [
     title: 'How long we keep it',
     body: (
       <p>
-        We keep your account and notebook for as long as you have an account. If you ask us to delete your account, we
-        delete it and your notebook within 30 days; copies in our providers’ backups disappear as those backups expire.
+        We keep your account and notebook for as long as you have an account. When you delete your account in Settings, it
+        is removed straight away with all its notes, files and shares, and a Pro subscription is cancelled; copies in our
+        providers’ backups disappear as those backups expire. If you ask us by email instead, we do the same within 30 days.
         Assistant usage records are kept for up to 12 months. Paddle keeps payment and tax records for as long as the law
         requires.
       </p>
@@ -286,7 +287,8 @@ const PRIVACY: Section[] = [
             <strong>correct</strong> it — you can edit your profile and notebook yourself;
           </li>
           <li>
-            <strong>delete</strong> it — delete anything in your notebook yourself, or email us to delete your whole account;
+            <strong>delete</strong> it — delete anything in your notebook yourself, or your whole account from{' '}
+            <em>Settings → Delete account</em>;
           </li>
           <li>
             <strong>restrict or object</strong> to some uses, or withdraw consent you gave.
@@ -457,7 +459,8 @@ const TERMS: Section[] = [
     title: 'Ending your account',
     body: (
       <p>
-        You can stop using {BRAND.name} at any time and ask us to delete your account by emailing <Mail />. We may suspend
+        You can stop using {BRAND.name} at any time, and delete your account with everything in it from{' '}
+        <em>Settings → Delete account</em> (or by emailing <Mail />). We may suspend
         or close accounts that seriously or repeatedly break these terms, and will tell you why unless the law prevents us.
       </p>
     ),
