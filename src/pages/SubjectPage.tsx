@@ -4,19 +4,31 @@ import { findSubject } from '../subjects';
 import { addSession, listSessions, type LectureSession } from '../lib/api';
 import { useCanEdit } from '../lib/auth';
 import AuthLink from '../components/AuthLink';
+import Icon from '../components/Icon';
 import SessionEditor from '../components/SessionEditor';
+import ExamBar from '../components/ExamBar';
+import ShareDialog from '../components/ShareDialog';
+import SubjectDetails from '../components/SubjectDetails';
+import { STEPS, checklist } from '../lib/checklist';
+import { useToast } from '../components/Toast';
 import NotFound from './NotFound';
+import { BRAND } from '../brand';
 
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
+
+const shortDate = (d: string) =>
+  new Date(`${d}T00:00:00`).toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
 
 export default function SubjectPage() {
   const { slug } = useParams();
   const subject = findSubject(slug);
   const canEdit = useCanEdit();
+  const toast = useToast();
   const [params, setParams] = useSearchParams();
   const [sessions, setSessions] = useState<LectureSession[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
+  const [sharing, setSharing] = useState(false);
 
   useEffect(() => {
     if (!subject) return;
@@ -27,17 +39,27 @@ export default function SubjectPage() {
   }, [subject]);
 
   useEffect(() => {
-    if (subject) document.title = `${subject.title} · My lecture notes`;
+    if (subject) document.title = `${subject.title} · ${BRAND.name}`;
     return () => {
-      document.title = 'My lecture notes';
+      document.title = BRAND.name;
     };
   }, [subject]);
 
+  const selectedNumber = Number(params.get('session')) || sessions?.[0]?.number;
+  const selectedIndex = sessions ? Math.max(0, sessions.findIndex((s) => s.number === selectedNumber)) : -1;
+  const selected = sessions?.[selectedIndex];
+
+  // Keep the active session visible in the (horizontally scrolling on mobile) list.
+  useEffect(() => {
+    document.querySelector('.session-item.active')?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  }, [selected?.id]);
+
   if (!subject) return <NotFound />;
 
-  const selectedNumber = Number(params.get('session')) || sessions?.[0]?.number;
-  const selected = sessions?.find((s) => s.number === selectedNumber) ?? sessions?.[0];
+  const view = params.get('view') === 'details' ? 'details' : 'sessions';
   const select = (n: number) => setParams({ session: String(n) }, { replace: true });
+  const showDetails = () => setParams({ view: 'details' }, { replace: true });
+  const showSessions = () => setParams(selected ? { session: String(selected.number) } : {}, { replace: true });
 
   const patchSession = (id: string, patch: Partial<LectureSession>) =>
     setSessions((list) => list?.map((s) => (s.id === id ? { ...s, ...patch } : s)) ?? null);
@@ -50,81 +72,156 @@ export default function SubjectPage() {
       const created = await addSession(subject.slug, next);
       setSessions([...sessions, created]);
       select(created.number);
+      toast(`Session ${created.number} added`);
     } catch (e) {
-      alert((e as Error).message);
+      toast((e as Error).message, 'error');
     } finally {
       setAdding(false);
     }
   };
 
   const totals = (sessions ?? []).reduce(
-    (t, s) => ({ notes: t.notes + s.noteCount, images: t.images + s.imageCount }),
-    { notes: 0, images: 0 },
+    (t, s) => ({ notes: t.notes + s.noteCount, images: t.images + s.imageCount, documents: t.documents + s.documentCount }),
+    { notes: 0, images: 0, documents: 0 },
   );
 
+  const prev = sessions && selectedIndex > 0 ? sessions[selectedIndex - 1] : undefined;
+  const next = sessions && selectedIndex < sessions.length - 1 ? sessions[selectedIndex + 1] : undefined;
+
   return (
-    <div className="page subject-page" style={{ '--accent': subject.color } as CSSProperties}>
+    <div className="subject-page" style={{ '--accent': subject.color } as CSSProperties}>
       <header className="topbar">
-        <Link to="/" className="btn btn-ghost btn-sm back">
-          ← All subjects
-        </Link>
-        <div className="topbar-title">
-          <span className="badge" style={{ background: subject.color }}>
-            {subject.number}
-          </span>
-          <div>
-            <h1>{subject.title}</h1>
-            <p className="muted small">
-              {plural(sessions?.length ?? 0, 'session')} · {plural(totals.notes, 'note')} ·{' '}
-              {plural(totals.images, 'image')}
-            </p>
+        <div className="topbar-inner">
+          <Link to="/" className="btn btn-ghost btn-sm back" aria-label="All subjects">
+            <Icon name="arrowLeft" size={16} />
+            <span className="hide-mobile">All subjects</span>
+          </Link>
+          <div className="topbar-title">
+            <span className="badge">{subject.number}</span>
+            <div className="topbar-text">
+              <h1>{subject.title}</h1>
+              <p className="muted small">
+                {sessions ? (
+                  <>
+                    {plural(sessions.length, 'session')} · {plural(totals.notes, 'note')} ·{' '}
+                    {plural(totals.images, 'image')}
+                    {totals.documents > 0 && ` · ${plural(totals.documents, 'document')}`}
+                  </>
+                ) : (
+                  <span className="skeleton skeleton-text" />
+                )}
+              </p>
+            </div>
           </div>
+          {canEdit && (
+            <button className="btn btn-ghost btn-sm" onClick={() => setSharing(true)} aria-label="Share subject" title="Share this subject">
+              <Icon name="share" size={16} />
+              <span className="hide-mobile">Share</span>
+            </button>
+          )}
+          <Link to="/calendar" className="btn btn-ghost btn-sm" aria-label="Calendar" title="Calendar">
+            <Icon name="calendarDays" size={16} />
+          </Link>
+          <AuthLink />
         </div>
-        <AuthLink />
       </header>
 
-      {error && <p className="error card">{error}</p>}
+      <div className="page subject-body">
+        {error && <p className="error card">{error}</p>}
 
-      <div className="subject-layout">
-        <aside className="session-list">
-          {sessions === null && !error && <p className="muted small pad">Loading…</p>}
-          {sessions?.map((s) => (
-            <button
-              key={s.id}
-              className={`session-item${s.id === selected?.id ? ' active' : ''}`}
-              onClick={() => select(s.number)}
-            >
-              <strong>Session {s.number}</strong>
-              <span className="session-topic">{s.topic || 'No topic yet'}</span>
-              <span className="session-counts">
-                {plural(s.noteCount, 'note')} · {plural(s.imageCount, 'image')}
-              </span>
-            </button>
-          ))}
-          {canEdit && sessions && (
-            <button className="session-item add-session" onClick={onAddSession} disabled={adding}>
-              {adding ? 'Adding…' : '+ Add session'}
-            </button>
-          )}
-        </aside>
+        <ExamBar subject={subject} sessions={sessions} canEdit={canEdit} onSelect={select} />
 
-        <main className="session-main">
-          {selected && (
-            <SessionEditor
-              key={selected.id}
-              subjectSlug={subject.slug}
-              session={selected}
-              canEdit={canEdit}
-              onPatch={(patch) => patchSession(selected.id, patch)}
-            />
-          )}
-          {sessions?.length === 0 && (
-            <div className="card">
-              <p className="muted">No sessions yet.{canEdit ? ' Use “Add session” to create one.' : ''}</p>
-            </div>
-          )}
-        </main>
+        <div className="subject-tabs" role="tablist" aria-label="Subject">
+          <button
+            role="tab"
+            aria-selected={view === 'sessions'}
+            className={view === 'sessions' ? 'active' : undefined}
+            onClick={showSessions}
+          >
+            <Icon name="calendar" size={15} /> Sessions {sessions && <span className="count">{sessions.length}</span>}
+          </button>
+          <button
+            role="tab"
+            aria-selected={view === 'details'}
+            className={view === 'details' ? 'active' : undefined}
+            onClick={showDetails}
+          >
+            <Icon name="cap" size={15} /> Subject details
+          </button>
+        </div>
+
+        {view === 'details' ? (
+          <div className="details-layout">
+            <SubjectDetails subjectSlug={subject.slug} canEdit={canEdit} />
+          </div>
+        ) : (
+          <div className="subject-layout">
+            <aside className="session-list" aria-label="Sessions">
+              {sessions === null &&
+                !error &&
+                Array.from({ length: 6 }, (_, i) => <div key={i} className="session-item skeleton-block" />)}
+              {sessions?.map((s) => {
+                const steps = checklist(s);
+                const done = steps.filter((x) => x.done).length;
+                return (
+                  <button
+                    key={s.id}
+                    className={`session-item${s.id === selected?.id ? ' active' : ''}`}
+                    onClick={() => select(s.number)}
+                    aria-current={s.id === selected?.id ? 'true' : undefined}
+                  >
+                    <span className="session-item-head">
+                      <strong>Session {s.number}</strong>
+                      {s.lectureDate && <span className="session-date">{shortDate(s.lectureDate)}</span>}
+                    </span>
+                    <span className={`session-topic${s.topic ? '' : ' empty'}`}>{s.topic || 'No topic yet'}</span>
+                    <span className="session-counts">
+                      <span className="session-counts-text">
+                        {plural(s.noteCount, 'note')} · {plural(s.imageCount, 'image')}
+                        {s.documentCount > 0 && ` · ${s.documentCount} doc${s.documentCount === 1 ? '' : 's'}`}
+                      </span>
+                      <span className="pips" title={`${done} of ${STEPS} steps done`} aria-label={`${done} of ${STEPS} steps done`}>
+                        {steps.map((x) => (
+                          <span key={x.key} className={x.done ? 'on' : undefined} />
+                        ))}
+                      </span>
+                    </span>
+                  </button>
+                );
+              })}
+              {canEdit && sessions && (
+                <button className="session-item add-session" onClick={onAddSession} disabled={adding}>
+                  <Icon name="plus" size={16} />
+                  {adding ? 'Adding…' : 'Add session'}
+                </button>
+              )}
+            </aside>
+
+            <main className="session-main">
+              {selected && (
+                <SessionEditor
+                  key={selected.id}
+                  subjectSlug={subject.slug}
+                  session={selected}
+                  total={sessions!.length}
+                  canEdit={canEdit}
+                  onPatch={(patch) => patchSession(selected.id, patch)}
+                  onPrev={prev && (() => select(prev.number))}
+                  onNext={next && (() => select(next.number))}
+                />
+              )}
+              {sessions === null && !error && <div className="card skeleton-block tall" />}
+              {sessions?.length === 0 && (
+                <div className="card empty-state">
+                  <p>No sessions yet.</p>
+                  {canEdit && <p className="muted small">Use “Add session” to create the first one.</p>}
+                </div>
+              )}
+            </main>
+          </div>
+        )}
       </div>
+      {sharing && <ShareDialog subject={subject} onClose={() => setSharing(false)} />}
     </div>
   );
 }

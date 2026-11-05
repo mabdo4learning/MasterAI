@@ -2,23 +2,68 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BrowserRouter, Route, Routes } from 'react-router-dom';
 import { AuthProvider } from './lib/auth';
-import Home from './pages/Home';
+import HomeRoute from './components/HomeRoute';
 import Login from './pages/Login';
+import Signup from './pages/Signup';
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
 import SubjectPage from './pages/SubjectPage';
+import CalendarPage from './pages/CalendarPage';
+import SettingsPage from './pages/SettingsPage';
+import SearchPage from './pages/SearchPage';
+import ExportPage from './pages/ExportPage';
+import PracticePage from './pages/PracticePage';
+import SharingPage from './pages/SharingPage';
+import SharedViewPage from './pages/SharedViewPage';
+import JoinSharePage from './pages/JoinSharePage';
+import WelcomePage from './pages/WelcomePage';
+import ManageSubjectsPage from './pages/ManageSubjectsPage';
+import { PrivacyPage, TermsPage } from './pages/LegalPage';
+import PendingShare from './components/PendingShare';
+import SearchHotkey from './components/SearchHotkey';
 import NotFound from './pages/NotFound';
+import { ToastProvider } from './components/Toast';
+import RequireAuth from './components/RequireAuth';
+import { initAccent, initTheme } from './lib/theme';
+import AccentSync from './components/AccentSync';
+import { initInstall } from './lib/install';
 import './styles.css';
+
+initTheme();
+initAccent();
+initInstall();
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <AuthProvider>
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/subjects/:slug" element={<SubjectPage />} />
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </BrowserRouter>
+      <AccentSync />
+      <ToastProvider>
+        <BrowserRouter>
+          <SearchHotkey />
+          <PendingShare />
+          <Routes>
+            <Route path="/" element={<HomeRoute />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/signup" element={<Signup />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
+            <Route path="/welcome" element={<RequireAuth><WelcomePage /></RequireAuth>} />
+            <Route path="/settings" element={<RequireAuth><SettingsPage /></RequireAuth>} />
+            <Route path="/settings/subjects" element={<RequireAuth><ManageSubjectsPage /></RequireAuth>} />
+            <Route path="/calendar" element={<RequireAuth><CalendarPage /></RequireAuth>} />
+            <Route path="/search" element={<RequireAuth><SearchPage /></RequireAuth>} />
+            <Route path="/subjects/:slug" element={<RequireAuth><SubjectPage /></RequireAuth>} />
+            <Route path="/subjects/:slug/export" element={<RequireAuth><ExportPage /></RequireAuth>} />
+            <Route path="/subjects/:slug/practice" element={<RequireAuth><PracticePage /></RequireAuth>} />
+            <Route path="/shared" element={<RequireAuth><SharingPage /></RequireAuth>} />
+            <Route path="/shared/:id" element={<RequireAuth><SharedViewPage /></RequireAuth>} />
+            <Route path="/share/:token" element={<JoinSharePage />} />
+            <Route path="/privacy" element={<PrivacyPage />} />
+            <Route path="/terms" element={<TermsPage />} />
+            <Route path="*" element={<RequireAuth><NotFound /></RequireAuth>} />
+          </Routes>
+        </BrowserRouter>
+      </ToastProvider>
     </AuthProvider>
   </StrictMode>,
 );

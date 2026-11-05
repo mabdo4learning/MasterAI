@@ -4,11 +4,12 @@ React + Vite front end, Supabase (database, image storage, login) back end, host
 
 ## 1. Create the Supabase project
 1. Sign up at https://supabase.com → **New project** (pick a region near you, save the DB password).
-2. **SQL Editor → New query**: paste `supabase/schema.sql`, replace `YOUR_EMAIL@example.com` with your email, **Run**.
-   This creates the tables, the security rules, the `lecture-images` bucket and 8 sessions per subject.
-3. **Authentication → Users → Add user → Create new user**: same email + a strong password, tick *Auto Confirm User*.
-4. **Authentication → Sign In / Providers**: turn **off** "Allow new users to sign up".
-5. **Project Settings → API Keys**: copy the Project URL and the *publishable* key (or legacy *anon* key).
+2. **SQL Editor → New query**: paste `supabase/schema.sql` and **Run**. This creates the tables, the per-user
+   security rules, the private `lecture-images` bucket, and the per-user `subjects` table. New accounts pick their subjects in an onboarding wizard.
+3. **Authentication → Sign In / Providers**: keep "Allow new users to sign up" on, and choose whether new users must
+   confirm their email (see *Sign-ups* below).
+4. **Authentication → URL Configuration**: set *Site URL* to your deployed URL (e.g. your Vercel domain).
+5. **Project Settings → API Keys**: copy the Project URL and the *publishable* key.
 
 ## 2. Run locally
 ```bash
@@ -30,10 +31,83 @@ Edit `src/config.ts` to set your programme, university and academic year.
 
 Every `git push` redeploys. `vercel.json` makes `/subjects/...` links work on refresh. (On Netlify, `public/_redirects` does the same.)
 
-## Privacy
-Visitors can read but not edit; writes are rejected by the database unless you're signed in as the owner email.
-To make notes private, in `schema.sql` change the three `using (true)` read policies to `using (public.is_owner())`,
-re-run it, and make the `lecture-images` bucket private (then switch `getPublicUrl` to `createSignedUrl` in `src/lib/api.ts`).
+## Privacy & accounts
+Every user has their own private notebook: all pages require signing in, the database only returns a user's own rows,
+and images live in a private bucket under `<user id>/...`, shown through 6-hour signed URLs.
+
+Upgrading a project created before multi-user support: run `supabase/migrations-002-private.sql`, then
+`supabase/migrations-003-multi-user.sql` (it assigns all existing notes to the one existing account), and only then
+turn sign-ups on.
+To add document uploads (PDF, PowerPoint, Word, Excel), run `supabase/migrations-004-documents.sql` before deploying.
+To make notes editable, run `supabase/migrations-005-note-edits.sql` before deploying.
+For the session checklist (attended / reviewed), run `supabase/migrations-006-session-checklist.sql` before deploying.
+For the question bank and practice mode, run `supabase/migrations-007-questions.sql` before deploying.
+For sharing between accounts, run `supabase/migrations-008-sharing.sql` before deploying.
+For subject details and subject attachments, run `supabase/migrations-009-subject-details.sql` (after 008) before deploying.
+For subjects you set up yourself (and the onboarding wizard), run `supabase/migrations-010-custom-subjects.sql` (after 009) before deploying. Existing accounts keep their ten subjects.
+
+### Sign-ups
+- Confirmation emails: Supabase's built-in email sender only delivers to your project's team members and is heavily
+  rate-limited. For other people to sign up, either turn **Confirm email** off (Authentication → Sign In / Providers →
+  Email), or add your own SMTP provider (Authentication → Emails → SMTP Settings; e.g. Resend's free tier).
+- To close sign-ups again, turn off "Allow new users to sign up"; existing users keep working.
+
+## Study assistant (AI)
+Each session has a **Study assistant** (a Pro feature — see *Payments* below) that turns its notes into a revision summary (saved as a note if you like) or
+exam-style practice questions (added to the question bank). It runs in the `study-assistant` Supabase Edge Function,
+which calls Claude (`claude-opus-5-5`) with your Anthropic API key; the key never reaches the browser.
+
+1. Run `supabase/migrations-011-ai-usage.sql` in the SQL editor (new projects: it's already in `schema.sql`).
+2. Get an API key at https://platform.claude.com, then with the Supabase CLI (`brew install supabase/tap/supabase`):
+   ```bash
+   supabase login
+   supabase link --project-ref <your project ref>
+   supabase secrets set ANTHROPIC_API_KEY=sk-ant-...
+   supabase functions deploy study-assistant
+   ```
+3. Optional secrets: `AI_DAILY_LIMIT` (requests per user per 24 hours, default 40) and `ALLOWED_ORIGINS`
+   (comma-separated, e.g. `https://your-app.vercel.app`; default allows any origin — requests still need a signed-in user).
+
+Every request is logged in `ai_usage` with its token counts, so you can watch spend in the Table Editor. The function
+only reads notes through the signed-in user's own login, so row level security applies to the assistant too.
+
+## Payments (MasterAI Pro)
+Pro costs $5/month or $40/year and unlocks the study assistant; everything else stays free. Payments go through
+**Paddle Billing**, which is the seller of record: it handles checkout, VAT/sales tax, invoices and payouts.
+
+1. Run `supabase/migrations-012-subscriptions.sql` in the SQL editor (new projects: it's already in `schema.sql`).
+2. In Paddle (start in the **sandbox**, https://sandbox-vendors.paddle.com):
+   - **Catalog → Products:** create *MasterAI Pro* with two recurring prices, $5 monthly and $40 yearly. Copy both `pri_...` ids.
+   - **Developer tools → Authentication:** create a client-side token, and an API key with the
+     `customer_portal_session.write` and `subscription.write` permissions (the second lets account deletion cancel a subscription).
+   - **Checkout → Checkout settings:** add your site's domain (and `localhost` for testing) to the approved domains.
+3. Deploy the two billing functions and their secrets:
+   ```bash
+   supabase secrets set PADDLE_API_KEY=pdl_sdbx_apikey_... PADDLE_ENV=sandbox
+   supabase functions deploy billing-portal
+   supabase functions deploy paddle-webhook --no-verify-jwt
+   ```
+4. **Developer tools → Notifications:** add a destination `https://<project-ref>.supabase.co/functions/v1/paddle-webhook`
+   with all `subscription.*` events. Copy its secret key, then `supabase secrets set PADDLE_WEBHOOK_SECRET=pdl_ntfset_...`.
+5. Add `VITE_PADDLE_CLIENT_TOKEN`, `VITE_PADDLE_ENV`, `VITE_PADDLE_PRICE_MONTHLY` and `VITE_PADDLE_PRICE_YEARLY` to `.env`
+   and to Vercel's environment variables (see `.env.example`). Test with Paddle's sandbox test cards.
+6. Going live: repeat 2–5 in the live Paddle account (live token, `pdl_live_apikey_...`, drop `PADDLE_ENV`,
+   `VITE_PADDLE_ENV=production`). If you change the prices, update `PRICING` in `src/lib/billing.ts` to match.
+
+To give an account Pro without paying (yourself, testers), run in the SQL editor:
+```sql
+insert into public.subscriptions (user_id, source, status)
+select id, 'comp', 'active' from auth.users where email = 'you@example.com'
+on conflict (user_id) do update set source = 'comp', status = 'active';
+```
+
+## Account deletion
+Users can delete their account in **Settings → Delete account**. The `delete-account` Edge Function checks their password
+again, cancels a live Paddle subscription immediately (it stops without deleting anything if that fails), removes their
+files from storage, and deletes the auth user; every table cascades from `auth.users`, so all their rows go with it.
+```bash
+supabase functions deploy delete-account
+```
 
 ## Free-tier notes
 Supabase pauses free projects after ~1 week with no activity; open the site or the dashboard to wake it.

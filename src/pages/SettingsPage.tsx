@@ -1,0 +1,672 @@
+import { useEffect, useState, type FormEvent } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { supabase } from '../lib/supabase';
+import { useAuth } from '../lib/auth';
+import { initials, useProfile, type Profile } from '../lib/profile';
+import { MIN_PASSWORD, strength } from '../lib/password';
+import AuthLink from '../components/AuthLink';
+import Icon, { type IconName } from '../components/Icon';
+import { useAccent, useTheme, type ThemeChoice } from '../lib/theme';
+import { ACCENTS } from '../lib/accents';
+import { useInstall } from '../lib/install';
+import { todayKey } from '../lib/exams';
+import { formatBytes } from '../lib/files';
+import type { BackupProgress } from '../lib/backup';
+import PasswordInput from '../components/PasswordInput';
+import StrengthMeter from '../components/StrengthMeter';
+import { useToast } from '../components/Toast';
+import { BRAND, LEGAL } from '../brand';
+import { useSubjects } from '../subjects';
+import { PRICING, openBillingPortal, planOf, useSubscription } from '../lib/billing';
+import UpgradeSheet from '../components/UpgradeSheet';
+import Sheet from '../components/Sheet';
+import { deleteAccount } from '../lib/account';
+
+const FIELDS: { key: keyof Profile; label: string; placeholder: string; autoComplete?: string }[] = [
+  { key: 'name', label: 'Full name', placeholder: 'Your name', autoComplete: 'name' },
+  { key: 'programme', label: 'Programme', placeholder: 'e.g. MSc Strategic Management' },
+  { key: 'university', label: 'University', placeholder: 'Your university', autoComplete: 'organization' },
+  { key: 'academicYear', label: 'Academic year', placeholder: 'e.g. 2026–2027' },
+];
+
+export default function SettingsPage() {
+  const { session, signOut } = useAuth();
+  const saved = useProfile();
+  const toast = useToast();
+  const email = session?.user.email ?? '';
+  const subjects = useSubjects();
+
+  useEffect(() => {
+    document.title = `Settings · ${BRAND.name}`;
+    return () => {
+      document.title = BRAND.name;
+    };
+  }, []);
+
+  return (
+    <div className="settings-page">
+      <header className="topbar">
+        <div className="topbar-inner">
+          <Link to="/" className="btn btn-ghost btn-sm back" aria-label="Dashboard">
+            <Icon name="arrowLeft" size={16} />
+            <span className="hide-mobile">Dashboard</span>
+          </Link>
+          <div className="topbar-title">
+            <span className="avatar avatar-lg" aria-hidden>
+              {initials(saved.name, email)}
+            </span>
+            <div className="topbar-text">
+              <h1>{saved.name || 'Your profile'}</h1>
+              <p className="muted small">{email}</p>
+            </div>
+          </div>
+          <AuthLink />
+        </div>
+      </header>
+
+      <div className="page settings-body">
+        <ProfileForm
+          key={JSON.stringify(saved)}
+          saved={saved}
+          onSaved={() => toast('Profile saved')}
+          onError={(m) => toast(m, 'error')}
+        />
+        <BillingCard userId={session?.user.id} onError={(m) => toast(m, 'error')} />
+        <section className="card settings-card">
+          <div className="settings-head">
+            <h2>
+              <Icon name="cap" /> Subjects
+            </h2>
+            <p className="muted small">Add, rename, recolour or reorder the subjects in your notebook.</p>
+          </div>
+          <Link to="/settings/subjects" className="subject-summary">
+            <span className="subject-dots" aria-hidden>
+              {subjects.slice(0, 12).map((s) => (
+                <span key={s.slug} style={{ background: s.color }} />
+              ))}
+            </span>
+            <span>
+              {subjects.length ? `${subjects.length} ${subjects.length === 1 ? 'subject' : 'subjects'}` : 'No subjects yet'}
+            </span>
+            <span className="btn btn-ghost btn-sm">
+              Manage <Icon name="arrowRight" size={15} />
+            </span>
+          </Link>
+        </section>
+        <ColourSettings onError={(m) => toast(m, 'error')} />
+        <AppSettings />
+        <BackupSettings onError={(m) => toast(m, 'error')} />
+        <PasswordForm onSaved={() => toast('Password changed')} />
+
+        <section className="card settings-card">
+          <div className="settings-head">
+            <h2>
+              <Icon name="logout" /> Sign out
+            </h2>
+            <p className="muted small">Sign out of this device. Your notes stay saved in your account.</p>
+          </div>
+          <div className="settings-actions">
+            <button className="btn btn-outline danger-outline" onClick={signOut}>
+              <Icon name="logout" size={16} /> Sign out
+            </button>
+          </div>
+        </section>
+
+        <DeleteAccountCard email={email} />
+
+        <p className="settings-legal muted small">
+          <Link to="/privacy">Privacy Policy</Link> · <Link to="/terms">Terms of Service</Link> · Questions?{' '}
+          <a href={`mailto:${LEGAL.contactEmail}`}>{LEGAL.contactEmail}</a>
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function ProfileForm({
+  saved,
+  onSaved,
+  onError,
+}: {
+  saved: Profile;
+  onSaved: () => void;
+  onError: (message: string) => void;
+}) {
+  const [values, setValues] = useState<Profile>(saved);
+  const [busy, setBusy] = useState(false);
+  const dirty = FIELDS.some((f) => values[f.key].trim() !== saved[f.key]);
+
+  const submit = async (e: FormEvent) => {
+    e.preventDefault();
+    setBusy(true);
+    const { error } = await supabase.auth.updateUser({
+      data: {
+        full_name: values.name.trim(),
+        programme: values.programme.trim(),
+        university: values.university.trim(),
+        academic_year: values.academicYear.trim(),
+      },
+    });
+    setBusy(false);
+    if (error) onError(error.message);
+    else onSaved();
+  };
+
+  return (
+    <form className="card settings-card" onSubmit={submit}>
+      <div className="settings-head">
+        <h2>
+          <Icon name="note" /> Profile
+        </h2>
+        <p className="muted small">Shown on your dashboard banner. Leave programme, university or year empty to hide it.</p>
+      </div>
+
+      <div className="settings-grid">
+        {FIELDS.map((f) => (
+          <label key={f.key} className={`field${f.key === 'name' ? ' span-2' : ''}`}>
+            <span>{f.label}</span>
+            <input
+              type="text"
+              placeholder={f.placeholder}
+              autoComplete={f.autoComplete}
+              value={values[f.key]}
+              onChange={(e) => setValues({ ...values, [f.key]: e.target.value })}
+            />
+          </label>
+        ))}
+      </div>
+
+      <div className="banner-preview" aria-label="Banner preview">
+        <span className="preview-label">Preview</span>
+        <span className="preview-greeting">
+          Good day{values.name.trim() && `, ${values.name.trim().split(/\s+/)[0]}`}
+        </span>
+        <div className="banner-pills">
+          {[values.programme, values.university, values.academicYear]
+            .map((v) => v.trim())
+            .filter(Boolean)
+            .map((v) => (
+              <span key={v}>{v}</span>
+            ))}
+        </div>
+      </div>
+
+      <div className="settings-actions">
+        {dirty && (
+          <button type="button" className="link-btn" onClick={() => setValues(saved)}>
+            Discard changes
+          </button>
+        )}
+        <button className="btn" disabled={busy || !dirty}>
+          {busy ? (
+            <>
+              <span className="btn-spinner" aria-hidden /> Saving…
+            </>
+          ) : (
+            <>
+              <Icon name="check" size={16} /> Save profile
+            </>
+          )}
+        </button>
+      </div>
+    </form>
+  );
+}
+
+function PasswordForm({ onSaved }: { onSaved: () => void }) {
+  const [password, setPassword] = useState('');
+  const [confirm, setConfirm] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const mismatch = confirm.length > 0 && confirm !== password;
+
+  const submit = async (e: FormEvent) => {
+    e.preventDefault();
+    if (strength(password).score === 0) return setError(`Your password needs at least ${MIN_PASSWORD} characters.`);
+    if (password !== confirm) return setError("The two passwords don't match.");
+    setBusy(true);
+    setError(null);
+    const { error } = await supabase.auth.updateUser({ password });
+    setBusy(false);
+    if (error) {
+      setError(
+        /different from the old/i.test(error.message)
+          ? 'Your new password must be different from your current one.'
+          : /reauthenticat/i.test(error.message)
+            ? 'For security, please sign out and use "Forgot password?" to change it.'
+            : error.message,
+      );
+      return;
+    }
+    setPassword('');
+    setConfirm('');
+    onSaved();
+  };
+
+  return (
+    <form className="card settings-card" onSubmit={submit}>
+      <div className="settings-head">
+        <h2>
+          <Icon name="lock" /> Password
+        </h2>
+        <p className="muted small">Choose a new password for signing in on all your devices.</p>
+      </div>
+
+      <div className="settings-grid">
+        <label className="field">
+          <span>New password</span>
+          <PasswordInput
+            value={password}
+            onChange={setPassword}
+            autoComplete="new-password"
+            placeholder={`At least ${MIN_PASSWORD} characters`}
+            minLength={MIN_PASSWORD}
+          />
+          <StrengthMeter password={password} />
+        </label>
+        <label className="field">
+          <span>Confirm new password</span>
+          <PasswordInput value={confirm} onChange={setConfirm} autoComplete="new-password" placeholder="Type it again" />
+          {mismatch && <span className="field-hint">Passwords don't match yet</span>}
+          {!mismatch && confirm && confirm === password && (
+            <span className="field-ok">
+              <Icon name="check" size={13} /> Passwords match
+            </span>
+          )}
+        </label>
+      </div>
+
+      {error && (
+        <div className="form-error" role="alert">
+          <Icon name="x" size={16} />
+          <span>{error}</span>
+        </div>
+      )}
+
+      <div className="settings-actions">
+        <button className="btn" disabled={busy || !password || !confirm}>
+          {busy ? (
+            <>
+              <span className="btn-spinner" aria-hidden /> Saving…
+            </>
+          ) : (
+            'Change password'
+          )}
+        </button>
+      </div>
+    </form>
+  );
+}
+
+const THEMES: { value: ThemeChoice; label: string; icon: IconName }[] = [
+  { value: 'system', label: 'Automatic', icon: 'devices' },
+  { value: 'light', label: 'Light', icon: 'sun' },
+  { value: 'dark', label: 'Dark', icon: 'moon' },
+];
+
+const longDate = (iso: string) => new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' });
+
+/** Free or Pro: upgrade, or manage the Paddle subscription. */
+function BillingCard({ userId, onError }: { userId?: string; onError: (message: string) => void }) {
+  const { subscription, isPro, loading } = useSubscription(userId);
+  const [upgrading, setUpgrading] = useState(false);
+  const [opening, setOpening] = useState(false);
+  const plan = planOf(subscription);
+
+  const manage = async () => {
+    setOpening(true);
+    try {
+      await openBillingPortal();
+    } catch (e) {
+      onError((e as Error).message);
+      setOpening(false);
+    }
+  };
+
+  let detail = 'The study assistant, revision summaries and AI practice questions come with Pro.';
+  if (subscription?.source === 'comp' && isPro) detail = 'Complimentary Pro on this account.';
+  else if (subscription && isPro) {
+    if (subscription.status === 'past_due') detail = 'Your last payment didn’t go through. Update your card to keep Pro.';
+    else if (subscription.cancelAt) detail = `Cancelled — Pro stays on until ${longDate(subscription.cancelAt)}.`;
+    else if (subscription.currentPeriodEnd) {
+      detail = `${plan ? `${PRICING[plan].amount} / ${PRICING[plan].per} · ` : ''}Renews on ${longDate(subscription.currentPeriodEnd)}.`;
+    }
+  } else if (subscription?.status === 'paused') detail = 'Your subscription is paused.';
+
+  return (
+    <section className="card settings-card" id="billing">
+      <div className="settings-head">
+        <h2>
+          <Icon name="sparkle" /> Plan
+        </h2>
+        <p className="muted small">{loading ? 'Checking your plan…' : detail}</p>
+      </div>
+      <div className="plan-summary">
+        <span className={`plan-chip${isPro ? ' pro' : ''}`}>{loading ? '…' : isPro ? 'Pro' : 'Free'}</span>
+        <div className="settings-actions">
+          {subscription?.source === 'paddle' && (
+            <button className="btn btn-ghost" onClick={manage} disabled={opening}>
+              {opening ? 'Opening…' : 'Manage billing'} <Icon name="external" size={15} />
+            </button>
+          )}
+          {!loading && !isPro && (
+            <button className="btn" onClick={() => setUpgrading(true)}>
+              <Icon name="sparkle" size={16} /> Upgrade to Pro
+            </button>
+          )}
+        </div>
+      </div>
+      {upgrading && <UpgradeSheet onClose={() => setUpgrading(false)} />}
+    </section>
+  );
+}
+
+/** The colour theme: accent, banner ink and highlight. Saved on the account. */
+export function ColourSettings({ onError }: { onError: (message: string) => void }) {
+  const [accent, setAccent] = useAccent();
+  const choose = (id: string) => setAccent(id).catch((e) => onError(`Couldn’t save your colour: ${(e as Error).message}`));
+
+  return (
+    <section className="card settings-card">
+      <div className="settings-head">
+        <h2>
+          <Icon name="sparkle" /> Colour theme
+        </h2>
+        <p className="muted small">Sets the colour of buttons, links and your dashboard banner. Saved on your account, so it follows you to every device.</p>
+      </div>
+      <div className="accent-grid" role="radiogroup" aria-label="Colour theme">
+        {ACCENTS.map((a) => (
+          <button
+            key={a.id}
+            type="button"
+            role="radio"
+            aria-checked={accent === a.id}
+            className={`accent-option${accent === a.id ? ' selected' : ''}`}
+            onClick={() => choose(a.id)}
+          >
+            <span
+              className="accent-preview"
+              aria-hidden
+              style={{ background: `linear-gradient(135deg, ${a.ink.hi} 0%, ${a.ink.deep} 60%, ${a.ink.lo} 100%)` }}
+            >
+              <span className="accent-preview-glow" style={{ background: `radial-gradient(60px 40px at 90% 0%, rgba(${a.glow}, 0.45), transparent 70%)` }} />
+              <span className="accent-preview-line" style={{ background: a.onInk.text }} />
+              <span className="accent-preview-line short" style={{ background: 'rgba(255,255,255,0.35)' }} />
+              <span className="accent-preview-ring" style={{ borderColor: a.onInk.ring }} />
+              <span className="accent-preview-btn" style={{ background: a.light.accent }} />
+            </span>
+            <span className="accent-text">
+              <strong>{a.name}</strong>
+              <span className="muted small">{a.note}</span>
+            </span>
+            {accent === a.id && (
+              <span className="accent-check">
+                <Icon name="check" size={13} />
+              </span>
+            )}
+          </button>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+/** Permanently deletes the account, after the password is entered again. */
+function DeleteAccountCard({ email }: { email: string }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <section className="card settings-card danger-card">
+      <div className="settings-head">
+        <h2>
+          <Icon name="trash" /> Delete account
+        </h2>
+        <p className="muted small">
+          Permanently delete your account with all its subjects, notes, files and shares. A Pro subscription is cancelled
+          at the same time.
+        </p>
+      </div>
+      <div className="settings-actions">
+        <button className="btn btn-outline danger-outline" onClick={() => setOpen(true)}>
+          <Icon name="trash" size={16} /> Delete my account
+        </button>
+      </div>
+      {open && <DeleteAccountSheet email={email} onClose={() => setOpen(false)} />}
+    </section>
+  );
+}
+
+export function DeleteAccountSheet({ email, onClose }: { email: string; onClose: () => void }) {
+  const toast = useToast();
+  const navigate = useNavigate();
+  const [password, setPassword] = useState('');
+  const [understood, setUnderstood] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const submit = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!password || !understood) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await deleteAccount(password);
+      toast('Your account and everything in it has been deleted.');
+      navigate('/', { replace: true });
+    } catch (err) {
+      setError((err as Error).message);
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Sheet title="Delete your account?" onClose={busy ? () => {} : onClose}>
+      <form className="copy-form" onSubmit={submit}>
+        <p className="muted">This permanently deletes <strong>{email}</strong> and can’t be undone:</p>
+        <ul className="delete-list">
+          <li>every subject, session, note, image, document and practice question</li>
+          <li>course details, your checklist and exam dates</li>
+          <li>everything you’ve shared — people you shared with lose access</li>
+          <li>your Pro subscription, which is cancelled immediately with no further charges</li>
+        </ul>
+        <p className="muted small">
+          Want a copy first? <a href="#backup" onClick={onClose}>Download a backup</a> before you continue. Paddle keeps its
+          own payment records, as the law requires.
+        </p>
+        <label className="field">
+          <span>Your password</span>
+          <PasswordInput value={password} onChange={setPassword} autoComplete="current-password" placeholder="Enter your password" />
+        </label>
+        <label className="check-line">
+          <input type="checkbox" checked={understood} onChange={(e) => setUnderstood(e.target.checked)} disabled={busy} />
+          <span>I understand my notebook will be permanently deleted.</span>
+        </label>
+        {error && <p className="error small">{error}</p>}
+        <div className="compose-actions">
+          <button type="button" className="btn btn-ghost" onClick={onClose} disabled={busy}>
+            Keep my account
+          </button>
+          <button className="btn danger-fill" disabled={busy || !password || !understood}>
+            <Icon name="trash" size={15} /> {busy ? 'Deleting…' : 'Delete everything'}
+          </button>
+        </div>
+      </form>
+    </Sheet>
+  );
+}
+
+function AppSettings() {
+  const [theme, setTheme] = useTheme();
+  const { state, install } = useInstall();
+
+  return (
+    <section className="card settings-card">
+      <div className="settings-head">
+        <h2>
+          <Icon name="phone" /> App
+        </h2>
+        <p className="muted small">Saved on this device only, so your phone and laptop can look different.</p>
+      </div>
+
+      <div className="app-row">
+        <div className="app-row-text">
+          <strong>Appearance</strong>
+          <span className="muted small">Automatic follows your device's light or dark setting.</span>
+        </div>
+        <div className="segmented" role="radiogroup" aria-label="Appearance">
+          {THEMES.map((t) => (
+            <button
+              key={t.value}
+              type="button"
+              role="radio"
+              aria-checked={theme === t.value}
+              className={theme === t.value ? 'active' : undefined}
+              onClick={() => setTheme(t.value)}
+            >
+              <Icon name={t.icon} size={15} /> {t.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="app-row">
+        <div className="app-row-text">
+          <strong>Install as an app</strong>
+          <span className="muted small">
+            {state === 'installed' && 'You are using the installed app.'}
+            {state === 'available' && 'Opens full screen from your home screen or dock, like any other app.'}
+            {state === 'ios' && (
+              <>
+                In Safari, tap <b>Share</b> <Icon name="upload" size={13} /> then <b>Add to Home Screen</b>.
+              </>
+            )}
+            {state === 'manual' &&
+              'Open your browser menu and choose “Install app” or “Add to Home screen”. On iPhone, use Safari.'}
+          </span>
+        </div>
+        {state === 'installed' && (
+          <span className="app-installed">
+            <Icon name="check" size={15} /> Installed
+          </span>
+        )}
+        {state === 'available' && (
+          <button type="button" className="btn btn-sm" onClick={install}>
+            <Icon name="download" size={15} /> Install app
+          </button>
+        )}
+      </div>
+    </section>
+  );
+}
+
+const LAST_BACKUP = 'lastBackup';
+
+function readLastBackup(): string | null {
+  try {
+    return localStorage.getItem(LAST_BACKUP);
+  } catch {
+    return null;
+  }
+}
+
+function progressLabel(p: BackupProgress | null): string {
+  if (!p || p.step === 'data') return 'Collecting your notes…';
+  if (p.step === 'files') return `Downloading files ${p.done} of ${p.total}…`;
+  return 'Creating the zip…';
+}
+
+/** Downloads everything in the account as a zip the user keeps themselves, independent of Supabase. */
+function BackupSettings({ onError }: { onError: (message: string) => void }) {
+  const toast = useToast();
+  const [withFiles, setWithFiles] = useState(true);
+  const [progress, setProgress] = useState<BackupProgress | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [last, setLast] = useState(readLastBackup);
+
+  const download = async () => {
+    setBusy(true);
+    setProgress(null);
+    try {
+      // Loaded on demand so the zip library isn't part of every page load.
+      const { createBackup } = await import('../lib/backup');
+      const blob = await createBackup(withFiles, setProgress);
+      const now = new Date();
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `lecture-notes-backup-${todayKey(now)}.zip`;
+      document.body.append(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 60_000);
+      try {
+        localStorage.setItem(LAST_BACKUP, now.toISOString());
+      } catch {
+        // Private mode: the backup still downloaded, it just isn't remembered.
+      }
+      setLast(now.toISOString());
+      toast(`Backup downloaded · ${formatBytes(blob.size)}`);
+    } catch (e) {
+      onError((e as Error).message);
+    } finally {
+      setBusy(false);
+      setProgress(null);
+    }
+  };
+
+  const percent = progress && progress.total > 0 ? (progress.done / progress.total) * 100 : 0;
+
+  return (
+    <section className="card settings-card" id="backup">
+      <div className="settings-head">
+        <h2>
+          <Icon name="download" /> Backup
+        </h2>
+        <p className="muted small">
+          Download a copy of everything in your account — sessions, notes, exam questions, checklist, exam dates and subject details — as a
+          zip file you keep yourself.
+        </p>
+      </div>
+
+      <ul className="backup-contents">
+        <li>
+          <Icon name="note" size={15} /> <strong>notes.md</strong>
+          <span className="muted small">readable in any text editor</span>
+        </li>
+        <li>
+          <Icon name="file" size={15} /> <strong>backup.json</strong>
+          <span className="muted small">the complete data</span>
+        </li>
+        {withFiles && (
+          <li>
+            <Icon name="image" size={15} /> <strong>files/</strong>
+            <span className="muted small">your images, PDFs and slides, a folder per session</span>
+          </li>
+        )}
+      </ul>
+
+      <label className="toggle backup-toggle">
+        <input type="checkbox" checked={withFiles} disabled={busy} onChange={(e) => setWithFiles(e.target.checked)} />
+        <span>Include images and files (bigger download)</span>
+      </label>
+
+      {busy && (
+        <div className="backup-progress" role="status">
+          <span className="muted small">{progressLabel(progress)}</span>
+          <span className="weekly-bar">
+            <span style={{ width: `${progress?.step === 'zip' ? 100 : percent}%` }} />
+          </span>
+        </div>
+      )}
+
+      <div className="settings-actions backup-actions">
+        <span className="muted small">
+          {last ? `Last backup on this device: ${new Date(last).toLocaleDateString(undefined, { dateStyle: 'medium' })}` : 'No backup downloaded on this device yet.'}
+        </span>
+        <button className="btn" onClick={download} disabled={busy}>
+          <Icon name="download" size={16} />
+          {busy ? 'Preparing…' : 'Download backup'}
+        </button>
+      </div>
+    </section>
+  );
+}
+

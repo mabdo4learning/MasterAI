@@ -6,10 +6,22 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "accents": "node --experimental-strip-types --no-warnings scripts/accents-css.mjs"
   },
   "dependencies": {
+    "@paddle/paddle-js": "1.6.5",
     "@supabase/supabase-js": "^2.118.0",
+    "@tiptap/core": "3.32.2",
+    "@tiptap/extension-list": "3.32.2",
+    "@tiptap/extensions": "3.32.2",
+    "@tiptap/markdown": "3.32.2",
+    "@tiptap/pm": "3.32.2",
+    "@tiptap/react": "3.32.2",
+    "@tiptap/starter-kit": "3.32.2",
+    "dompurify": "3.4.17",
+    "fflate": "^0.8.2",
+    "marked": "18.1.2",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "react-router-dom": "^7.18.4"
