@@ -14,5 +14,5 @@ export const LEGAL = {
   governingLaw: 'the laws of the United Arab Emirates, as applied in the Emirate of Dubai',
   courts: 'the courts of Dubai, United Arab Emirates',
   minimumAge: 16,
-  lastUpdated: '2 November 2026',
+  lastUpdated: '6 November 2026',
 };

@@ -55,21 +55,25 @@ For subjects you set up yourself (and the onboarding wizard), run `supabase/migr
 ## Study assistant (AI)
 Each session has a **Study assistant** (a Pro feature — see *Payments* below) that turns its notes into a revision summary (saved as a note if you like) or
 exam-style practice questions (added to the question bank). It runs in the `study-assistant` Supabase Edge Function,
-which calls Claude (`claude-opus-5-5`) with your Anthropic API key; the key never reaches the browser.
+which calls Google Gemini (`gemini-flash-latest` by default) with your Gemini API key; the key never reaches the browser.
 
 1. Run `supabase/migrations-011-ai-usage.sql` in the SQL editor (new projects: it's already in `schema.sql`).
-2. Get an API key at https://platform.claude.com, then with the Supabase CLI (`brew install supabase/tap/supabase`):
+2. Get a free API key at https://aistudio.google.com/apikey, then with the Supabase CLI (`npx supabase` works without installing):
    ```bash
    supabase login
    supabase link --project-ref <your project ref>
-   supabase secrets set ANTHROPIC_API_KEY=sk-ant-...
+   supabase secrets set GEMINI_API_KEY=AIza...
    supabase functions deploy study-assistant
    ```
-3. Optional secrets: `AI_DAILY_LIMIT` (requests per user per 24 hours, default 40) and `ALLOWED_ORIGINS`
+3. Optional secrets: `GEMINI_MODEL` (any model your key can use), `AI_DAILY_LIMIT` (requests per user per 24 hours, default 40) and `ALLOWED_ORIGINS`
    (comma-separated, e.g. `https://your-app.vercel.app`; default allows any origin — requests still need a signed-in user).
 
 Every request is logged in `ai_usage` with its token counts, so you can watch spend in the Table Editor. The function
 only reads notes through the signed-in user's own login, so row level security applies to the assistant too.
+
+**Free tier caveats:** Google may use free-tier requests to improve its models (the Privacy Policy says so), the
+free tier has per-minute and per-day rate limits, and Google's terms may require the paid tier for users in the
+EEA, UK or Switzerland. Enabling billing on the key in Google AI Studio lifts all three; then update the Privacy Policy.
 
 ## Payments (MasterAI Pro)
 Pro costs $5/month or $40/year and unlocks the study assistant; everything else stays free. Payments go through

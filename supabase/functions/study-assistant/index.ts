@@ -1,14 +1,15 @@
 // Study assistant: summarises a lecture session's notes and suggests exam-style practice
-// questions, using Claude. Deploy with `supabase functions deploy study-assistant` and set the
-// key with `supabase secrets set ANTHROPIC_API_KEY=...` (see README → Study assistant).
+// questions, using Google Gemini. Deploy with `supabase functions deploy study-assistant` and set
+// the key with `supabase secrets set GEMINI_API_KEY=...` (see README → Study assistant).
 //
 // The browser sends only { action, sessionId }. The notes are read here with the caller's own
 // login, so row level security decides what can be summarised — never text from the request.
 
-import Anthropic from 'npm:@anthropic-ai/sdk@1.3.0';
+import { ApiError, GoogleGenAI, type GenerateContentResponse } from 'npm:@google/genai@2.31.0';
 import { createClient, type SupabaseClient, type User } from 'npm:@supabase/supabase-js@2.118.0';
 
-const MODEL = 'claude-opus-5-5';
+// Any Gemini model your key can use; the alias follows Google's current Flash model.
+const MODEL = Deno.env.get('GEMINI_MODEL') ?? 'gemini-flash-latest';
 // Requests per Pro user per rolling 24 hours (set AI_DAILY_LIMIT to change it).
 const DAILY_LIMIT = Number(Deno.env.get('AI_DAILY_LIMIT') ?? '40');
 // About 75k tokens of notes. Longer sessions get a clear error instead of being cut short.
@@ -109,14 +110,28 @@ async function loadContext(db: SupabaseClient, user: User, sessionId: string, ac
 
 /** A message for the student, without internal details. */
 function friendlyError(e: unknown): string {
-  if (e instanceof Anthropic.RateLimitError) return 'The assistant is busy right now. Please try again in a minute.';
-  if (e instanceof Anthropic.AuthenticationError || e instanceof Anthropic.PermissionDeniedError) {
-    return 'The assistant isn’t configured correctly (API key). Ask the site owner to check it.';
+  if (e instanceof ApiError) {
+    if (e.status === 429) return 'The assistant is busy right now. Please try again in a minute.';
+    if (e.status === 401 || e.status === 403 || /api key/i.test(e.message)) {
+      return 'The assistant isn’t configured correctly (API key). Ask the site owner to check it.';
+    }
+    if (e.status >= 500) return 'The assistant had a problem. Please try again.';
   }
-  if (e instanceof Anthropic.APIConnectionError) return 'Couldn’t reach the assistant. Please try again.';
-  if (e instanceof Anthropic.APIError && (e.status ?? 0) >= 500) return 'The assistant had a problem. Please try again.';
+  if (e instanceof TypeError) return 'Couldn’t reach the assistant. Please try again.';
   return 'Something went wrong with the assistant.';
 }
+
+type Usage = { input_tokens: number; output_tokens: number };
+const usageOf = (r: GenerateContentResponse | undefined): Usage | null =>
+  r?.usageMetadata
+    ? {
+        input_tokens: r.usageMetadata.promptTokenCount ?? 0,
+        output_tokens: (r.usageMetadata.candidatesTokenCount ?? 0) + (r.usageMetadata.thoughtsTokenCount ?? 0),
+      }
+    : null;
+/** Gemini blocked the prompt or stopped the answer on safety grounds. */
+const blocked = (r: GenerateContentResponse | undefined) =>
+  !!r?.promptFeedback?.blockReason || ['SAFETY', 'PROHIBITED_CONTENT', 'BLOCKLIST', 'SPII'].includes(String(r?.candidates?.[0]?.finishReason));
 
 const REFUSED = 'The assistant couldn’t help with these notes. Try rephrasing or shortening them.';
 
@@ -124,11 +139,11 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: cors(req) });
   if (req.method !== 'POST') return json(req, 405, { error: 'Method not allowed' });
 
-  const apiKey = Deno.env.get('ANTHROPIC_API_KEY');
+  const apiKey = Deno.env.get('GEMINI_API_KEY');
   const url = Deno.env.get('SUPABASE_URL')!;
   const anonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
   const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-  if (!apiKey) return json(req, 503, { error: 'The study assistant isn’t set up yet (missing ANTHROPIC_API_KEY).' });
+  if (!apiKey) return json(req, 503, { error: 'The study assistant isn’t set up yet (missing GEMINI_API_KEY).' });
 
   const authorization = req.headers.get('Authorization') ?? '';
   const db = createClient(url, anonKey, {
@@ -177,7 +192,7 @@ Deno.serve(async (req) => {
     return json(req, 413, { error: 'This session’s notes are too long for the assistant. Try splitting them across sessions.' });
   }
 
-  const log = (ok: boolean, usage?: { input_tokens: number; output_tokens: number } | null, model = MODEL) =>
+  const log = (ok: boolean, usage?: Usage | null, model = MODEL) =>
     admin.from('ai_usage').insert({
       user_id: user.id,
       action,
@@ -188,32 +203,28 @@ Deno.serve(async (req) => {
       ok,
     });
 
-  const anthropic = new Anthropic({ apiKey });
-  // On a safety decline, the API retries on Anthropic's recommended fallback model in the same call.
-  const common = {
-    model: MODEL,
-    betas: ['server-side-fallback-2026-07-01'],
-    fallbacks: 'default' as const,
-    output_config: { effort: 'medium' as const },
-  };
+  const ai = new GoogleGenAI({ apiKey });
 
   if (action === 'questions') {
     try {
-      const message = await anthropic.beta.messages.create({
-        ...common,
-        max_tokens: 16000,
-        system: QUESTIONS_SYSTEM,
-        output_config: { ...common.output_config, format: { type: 'json_schema', schema: QUESTIONS_SCHEMA } },
-        messages: [{ role: 'user', content: `${context.prompt}\n\nWrite ${count} practice questions (fewer if the notes are short).` }],
+      const response = await ai.models.generateContent({
+        model: MODEL,
+        contents: `${context.prompt}\n\nWrite ${count} practice questions (fewer if the notes are short).`,
+        config: {
+          systemInstruction: QUESTIONS_SYSTEM,
+          maxOutputTokens: 16000,
+          responseMimeType: 'application/json',
+          responseJsonSchema: QUESTIONS_SCHEMA,
+        },
       });
-      if (message.stop_reason === 'refusal') {
-        await log(false, message.usage, message.model);
+      const model = response.modelVersion ?? MODEL;
+      if (blocked(response)) {
+        await log(false, usageOf(response), model);
         return json(req, 422, { error: REFUSED });
       }
-      const text = message.content.find((b) => b.type === 'text');
       let questions: { question: string; answer: string }[] = [];
       try {
-        const parsed = JSON.parse(text && text.type === 'text' ? text.text : '{}');
+        const parsed = JSON.parse(response.text ?? '{}');
         questions = (Array.isArray(parsed.questions) ? parsed.questions : [])
           .filter((q: unknown): q is { question: string; answer: string } =>
             !!q && typeof (q as { question?: unknown }).question === 'string' && typeof (q as { answer?: unknown }).answer === 'string')
@@ -221,9 +232,9 @@ Deno.serve(async (req) => {
           .filter((q: { question: string }) => q.question)
           .slice(0, 10);
       } catch {
-        // max_tokens or malformed output: treated as no questions below.
+        // Cut off or malformed output: treated as no questions below.
       }
-      await log(questions.length > 0, message.usage, message.model);
+      await log(questions.length > 0, usageOf(response), model);
       if (!questions.length) return json(req, 502, { error: 'The assistant didn’t return any questions. Please try again.' });
       return json(req, 200, { questions });
     } catch (e) {
@@ -235,34 +246,40 @@ Deno.serve(async (req) => {
 
   // Summary: streamed to the browser as newline-delimited JSON events.
   const encoder = new TextEncoder();
-  const stream = anthropic.beta.messages.stream({
-    ...common,
-    max_tokens: 64000,
-    system: SUMMARY_SYSTEM,
-    messages: [{ role: 'user', content: `${context.prompt}\n\nWrite the revision summary.` }],
-  });
+  const abort = new AbortController();
   const events = new ReadableStream<Uint8Array>({
     async start(controller) {
       const send = (event: Record<string, unknown>) => controller.enqueue(encoder.encode(`${JSON.stringify(event)}\n`));
-      stream.on('text', (text) => send({ type: 'text', text }));
+      let last: GenerateContentResponse | undefined;
       try {
-        const message = await stream.finalMessage();
-        if (message.stop_reason === 'refusal') {
+        const stream = await ai.models.generateContentStream({
+          model: MODEL,
+          contents: `${context.prompt}\n\nWrite the revision summary.`,
+          config: { systemInstruction: SUMMARY_SYSTEM, maxOutputTokens: 32000, abortSignal: abort.signal },
+        });
+        for await (const chunk of stream) {
+          last = chunk;
+          const text = chunk.text;
+          if (text) send({ type: 'text', text });
+        }
+        const model = last?.modelVersion ?? MODEL;
+        if (blocked(last)) {
           send({ type: 'error', message: REFUSED });
-          await log(false, message.usage, message.model);
+          await log(false, usageOf(last), model);
         } else {
-          send({ type: 'done', truncated: message.stop_reason === 'max_tokens' });
-          await log(true, message.usage, message.model);
+          send({ type: 'done', truncated: last?.candidates?.[0]?.finishReason === 'MAX_TOKENS' });
+          await log(true, usageOf(last), model);
         }
       } catch (e) {
+        if (abort.signal.aborted) return;
         console.error('summary failed', e);
         send({ type: 'error', message: friendlyError(e) });
-        await log(false);
+        await log(false, usageOf(last));
       }
       controller.close();
     },
     cancel() {
-      stream.abort();
+      abort.abort();
     },
   });
   return new Response(events, {

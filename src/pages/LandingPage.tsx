@@ -4,7 +4,7 @@ import { BRAND } from '../brand';
 import { PALETTE } from '../subjects';
 import Logo, { LogoMark } from '../components/Logo';
 import Icon, { type IconName } from '../components/Icon';
-import { PRICING } from '../lib/billing';
+import { PRICING, billingConfigured } from '../lib/billing';
 
 const FEATURES: { icon: IconName; title: string; text: string }[] = [
   { icon: 'note', title: 'Notes for every session', text: 'A calm page for each lecture: write as you listen, edit later, find it again in seconds.' },
@@ -42,7 +42,7 @@ const FAQ: { q: string; a: ReactNode }[] = [
   },
   {
     q: 'What does it cost?',
-    a: `Your notebook is free: subjects, sessions, notes, files, the question bank, sharing and exports. ${BRAND.name} Pro adds the study assistant for ${PRICING.monthly.amount} a month or ${PRICING.yearly.amount} a year, and you can cancel any time — your notes stay yours either way.`,
+    a: `Your notebook is free: subjects, sessions, notes, files, the question bank, sharing and exports. ${BRAND.name} Pro${billingConfigured ? '' : ', coming soon,'} adds the study assistant for ${PRICING.monthly.amount} a month or ${PRICING.yearly.amount} a year, and you can cancel any time — your notes stay yours either way.`,
   },
 ];
 
@@ -278,7 +278,7 @@ export default function LandingPage() {
               <h2>
                 Free to keep. <em>Pro</em> to revise faster.
               </h2>
-              <p>Your notebook is free, for good. Pro adds the study assistant.</p>
+              <p>Your notebook is free, for good. Pro adds the study assistant{billingConfigured ? '' : ' — coming soon'}.</p>
             </div>
             <div className="lp-prices">
               <div className="lp-price reveal">
@@ -308,7 +308,7 @@ export default function LandingPage() {
                 </Link>
               </div>
               <div className="lp-price lp-price-pro reveal">
-                <span className="plan-badge">Most popular</span>
+                <span className="plan-badge">{billingConfigured ? 'Most popular' : 'Coming soon'}</span>
                 <div className="lp-price-top">
                   <span className="lp-price-name">Pro</span>
                   <span className="lp-price-amount">
@@ -333,7 +333,7 @@ export default function LandingPage() {
                   </li>
                 </ul>
                 <Link to="/signup" className="btn btn-lg">
-                  Start free, upgrade any time <Icon name="arrowRight" size={16} />
+                  {billingConfigured ? 'Start free, upgrade any time' : 'Start free today'} <Icon name="arrowRight" size={16} />
                 </Link>
               </div>
             </div>

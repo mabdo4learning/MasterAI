@@ -85,7 +85,7 @@ export default function UpgradeSheet({ onClose, reason }: { onClose: () => void;
             </p>
           </>
         ) : (
-          <p className="error small center">Payments aren’t set up yet. Add the Paddle settings to .env (see README).</p>
+          <p className="muted small center">Pro is coming soon. Your free account will be able to upgrade as soon as it’s ready.</p>
         )}
       </div>
     </Sheet>

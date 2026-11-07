@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { addQuestion } from '../lib/api';
 import { ProRequiredError, streamSummary, suggestQuestions, type SuggestedQuestion } from '../lib/assistant';
 import { useAuth } from '../lib/auth';
-import { refreshSubscription, useSubscription } from '../lib/billing';
+import { billingConfigured, refreshSubscription, useSubscription } from '../lib/billing';
 import UpgradeSheet from './UpgradeSheet';
 import NoteContent from './NoteContent';
 import Icon from './Icon';
@@ -140,13 +140,15 @@ export default function StudyAssistant({ sessionId, noteCount, onSaveNote, onQue
         <div className="assistant-idle">
           <p className="muted">
             Turn this session’s notes into a revision summary or exam-style practice questions —{' '}
-            <span className="pro-pill">Pro</span>
+            <span className="pro-pill">{billingConfigured ? 'Pro' : 'Coming soon'}</span>
           </p>
-          <div className="assistant-actions">
-            <button className="btn" onClick={() => setUpgrading(true)}>
-              <Icon name="sparkle" size={16} /> Upgrade to Pro
-            </button>
-          </div>
+          {billingConfigured && (
+            <div className="assistant-actions">
+              <button className="btn" onClick={() => setUpgrading(true)}>
+                <Icon name="sparkle" size={16} /> Upgrade to Pro
+              </button>
+            </div>
+          )}
         </div>
       )}
 

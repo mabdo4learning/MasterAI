@@ -7,7 +7,7 @@ import Icon from '../components/Icon';
 
 /*
  * The Privacy Policy and Terms. They describe how this app actually works (Supabase, Vercel,
- * Anthropic, Paddle, Google Fonts; no analytics or ads). If you add a service that touches
+ * Google Gemini, Paddle, Google Fonts; no analytics or ads). If you add a service that touches
  * user data — analytics, error tracking, an email provider — add it to PROCESSORS and update
  * LEGAL.lastUpdated in src/brand.ts. This is a starting point, not legal advice.
  */
@@ -99,9 +99,9 @@ const PROCESSORS: { name: string; role: string; link: string }[] = [
     link: 'https://vercel.com/legal/privacy-policy',
   },
   {
-    name: 'Anthropic',
+    name: 'Google (Gemini API)',
     role: 'Runs the AI behind the study assistant. It receives a session’s notes only when you ask the assistant to work on them.',
-    link: 'https://www.anthropic.com/legal/privacy',
+    link: 'https://ai.google.dev/gemini-api/terms',
   },
   {
     name: 'Paddle',
@@ -192,13 +192,14 @@ const PRIVACY: Section[] = [
       <>
         <p>
           The study assistant is optional. Only when you press <em>Summarise notes</em> or <em>Suggest questions</em>, the
-          notes of that one session — with its topic, subject name and your programme name — are sent to Anthropic to
-          produce the result. Nothing is sent otherwise.
+          notes of that one session — with its topic, subject name and your programme name — are sent to Google’s
+          Gemini API to produce the result. Nothing is sent otherwise.
         </p>
         <p>
-          Anthropic processes this as our service provider under its commercial terms, which do not allow it to use your
-          notes to train its models. It may keep requests for a limited period for safety and abuse monitoring. Summaries and
-          questions are shown only to you, and saved only if you choose to save them.
+          We use Google’s free tier of the Gemini API. Under Google’s terms for that tier, Google may use what is sent to it,
+          and its responses, to provide and improve its products and models, and trained human reviewers may read it. So
+          don’t use the assistant on notes that contain anything you want kept private, such as personal or confidential
+          details. Summaries and questions are shown only to you, and saved only if you choose to save them.
         </p>
         <p>AI output can be wrong. Check it against your lecture materials before relying on it.</p>
       </>

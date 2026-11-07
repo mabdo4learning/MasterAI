@@ -17,7 +17,7 @@ import StrengthMeter from '../components/StrengthMeter';
 import { useToast } from '../components/Toast';
 import { BRAND, LEGAL } from '../brand';
 import { useSubjects } from '../subjects';
-import { PRICING, openBillingPortal, planOf, useSubscription } from '../lib/billing';
+import { PRICING, billingConfigured, openBillingPortal, planOf, useSubscription } from '../lib/billing';
 import UpgradeSheet from '../components/UpgradeSheet';
 import Sheet from '../components/Sheet';
 import { deleteAccount } from '../lib/account';
@@ -323,7 +323,9 @@ function BillingCard({ userId, onError }: { userId?: string; onError: (message: 
     }
   };
 
-  let detail = 'The study assistant, revision summaries and AI practice questions come with Pro.';
+  let detail = billingConfigured
+    ? 'The study assistant, revision summaries and AI practice questions come with Pro.'
+    : 'Pro is coming soon: the study assistant, with revision summaries and AI practice questions from your notes.';
   if (subscription?.source === 'comp' && isPro) detail = 'Complimentary Pro on this account.';
   else if (subscription && isPro) {
     if (subscription.status === 'past_due') detail = 'Your last payment didn’t go through. Update your card to keep Pro.';
@@ -349,11 +351,12 @@ function BillingCard({ userId, onError }: { userId?: string; onError: (message: 
               {opening ? 'Opening…' : 'Manage billing'} <Icon name="external" size={15} />
             </button>
           )}
-          {!loading && !isPro && (
+          {!loading && !isPro && billingConfigured && (
             <button className="btn" onClick={() => setUpgrading(true)}>
               <Icon name="sparkle" size={16} /> Upgrade to Pro
             </button>
           )}
+          {!loading && !isPro && !billingConfigured && <span className="pro-pill">Coming soon</span>}
         </div>
       </div>
       {upgrading && <UpgradeSheet onClose={() => setUpgrading(false)} />}
