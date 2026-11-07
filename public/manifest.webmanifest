@@ -1,7 +1,7 @@
 {
-  "name": "MasterAI",
-  "short_name": "MasterAI",
-  "description": "Notes, slides and revision for every Master’s session, beautifully organised.",
+  "name": "Lecturefolio",
+  "short_name": "Lecturefolio",
+  "description": "Notes, slides and revision for every lecture of your degree, beautifully organised.",
   "id": "/",
   "start_url": "/",
   "scope": "/",

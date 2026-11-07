@@ -1,7 +1,7 @@
 import { useId } from 'react';
 import { BRAND } from '../brand';
 
-/** The brand monogram: a gold "M" with a small spark, on an emerald tile. */
+/** The brand monogram: a gold "L" with a small spark, on an emerald tile. */
 export function LogoMark({ size = 40, className = '' }: { size?: number; className?: string }) {
   const id = useId();
   return (
@@ -25,7 +25,7 @@ export function LogoMark({ size = 40, className = '' }: { size?: number; classNa
       <rect width="40" height="40" rx="11" fill={`url(#${id}-bg)`} />
       <rect x="0.5" y="0.5" width="39" height="39" rx="10.5" fill="none" stroke="#fff" strokeOpacity="0.12" />
       <path
-        d="M11 28V13l9 10 9-10v15"
+        d="M15 11.5v16h11"
         fill="none"
         stroke={`url(#${id}-gold)`}
         strokeWidth="3"

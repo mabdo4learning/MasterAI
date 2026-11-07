@@ -1,8 +1,9 @@
 // Product identity — change the name here and it updates everywhere in the app.
 // (Also update <title> in index.html and public/manifest.webmanifest.)
 export const BRAND = {
-  name: 'MasterAI',
-  tagline: 'Your Master’s, beautifully organised.',
+  name: 'Lecturefolio',
+  tagline: 'Every lecture, beautifully kept.',
+  url: 'https://lecturefolio.com',
 };
 
 // Shown in the Privacy Policy and Terms (src/pages/LegalPage.tsx). Have them reviewed by a lawyer

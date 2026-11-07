@@ -2,7 +2,7 @@
 // Pages load from the network first (so a new deploy shows straight away) and
 // fall back to the last copy when offline. Hashed build files and fonts are
 // cached. Supabase requests are never touched, so notes are always live data.
-const VERSION = 'v2';
+const VERSION = 'v3';
 const SHELL = `shell-${VERSION}`;
 const STATIC = `static-${VERSION}`;
 

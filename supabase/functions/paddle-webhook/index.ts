@@ -98,7 +98,7 @@ Deno.serve(async (req) => {
     userId = data?.user_id ?? null;
   }
   if (!userId) {
-    console.warn('subscription without a MasterAI user', sub.id, event.event_id);
+    console.warn('subscription without a Lecturefolio user', sub.id, event.event_id);
     return new Response('ok');
   }
 

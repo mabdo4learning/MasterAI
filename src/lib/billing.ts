@@ -3,7 +3,7 @@ import type { Paddle } from '@paddle/paddle-js';
 import { supabase } from './supabase';
 
 /**
- * MasterAI Pro, sold through Paddle Billing. The browser opens Paddle's checkout overlay; Paddle
+ * Lecturefolio Pro, sold through Paddle Billing. The browser opens Paddle's checkout overlay; Paddle
  * tells the paddle-webhook Edge Function, which writes public.subscriptions; the app reads that row.
  * Set these in .env (see .env.example): the client-side token and the two price ids from Paddle.
  */

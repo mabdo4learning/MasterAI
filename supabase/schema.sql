@@ -762,7 +762,7 @@ create policy "read own ai usage" on public.ai_usage for select to authenticated
   using (user_id = (select auth.uid()));
 -- No insert/update/delete policies: only the service role (the Edge Function) writes.
 
--- ---------- MasterAI Pro subscriptions (same as migrations-012-subscriptions.sql) ----------
+-- ---------- Lecturefolio Pro subscriptions (same as migrations-012-subscriptions.sql) ----------
 
 create table if not exists public.subscriptions (
   user_id                uuid primary key references auth.users (id) on delete cascade,

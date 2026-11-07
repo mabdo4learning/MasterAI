@@ -1,4 +1,4 @@
-# My lecture notes
+# Lecturefolio
 
 React + Vite front end, Supabase (database, image storage, login) back end, hosted on Vercel. All free tier.
 
@@ -75,13 +75,13 @@ only reads notes through the signed-in user's own login, so row level security a
 free tier has per-minute and per-day rate limits, and Google's terms may require the paid tier for users in the
 EEA, UK or Switzerland. Enabling billing on the key in Google AI Studio lifts all three; then update the Privacy Policy.
 
-## Payments (MasterAI Pro)
+## Payments (Lecturefolio Pro)
 Pro costs $5/month or $40/year and unlocks the study assistant; everything else stays free. Payments go through
 **Paddle Billing**, which is the seller of record: it handles checkout, VAT/sales tax, invoices and payouts.
 
 1. Run `supabase/migrations-012-subscriptions.sql` in the SQL editor (new projects: it's already in `schema.sql`).
 2. In Paddle (start in the **sandbox**, https://sandbox-vendors.paddle.com):
-   - **Catalog → Products:** create *MasterAI Pro* with two recurring prices, $5 monthly and $40 yearly. Copy both `pri_...` ids.
+   - **Catalog → Products:** create *Lecturefolio Pro* with two recurring prices, $5 monthly and $40 yearly. Copy both `pri_...` ids.
    - **Developer tools → Authentication:** create a client-side token, and an API key with the
      `customer_portal_session.write` and `subscription.write` permissions (the second lets account deletion cancel a subscription).
    - **Checkout → Checkout settings:** add your site's domain (and `localhost` for testing) to the approved domains.

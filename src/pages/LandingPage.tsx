@@ -26,7 +26,7 @@ const STEPS = [
 const FAQ: { q: string; a: ReactNode }[] = [
   {
     q: 'Who is it for?',
-    a: `Master’s students — and anyone studying a programme of modules and lectures — who want their notes, slides and revision in one beautiful place.`,
+    a: `University students — undergraduate or postgraduate — and anyone studying a programme of modules and lectures — who want their notes, slides and revision in one beautiful place.`,
   },
   {
     q: 'Is my notebook private?',
@@ -119,7 +119,7 @@ export default function LandingPage() {
           <div className="lp-wrap lp-hero-inner">
             <div className="lp-hero-copy">
               <span className="lp-eyebrow">
-                <Icon name="sparkle" size={14} /> The study notebook for your Master’s
+                <Icon name="sparkle" size={14} /> The study notebook for your degree
               </span>
               <h1>
                 Every lecture,
@@ -163,7 +163,7 @@ export default function LandingPage() {
               <h2>
                 A notebook that <em>thinks</em> in modules and sessions.
               </h2>
-              <p>Built around how a Master’s actually runs — so nothing gets lost between the lecture and the exam.</p>
+              <p>Built around how a degree actually runs — so nothing gets lost between the lecture and the exam.</p>
             </div>
             <div className="lp-features">
               {FEATURES.map((f, i) => (
@@ -368,7 +368,7 @@ export default function LandingPage() {
               <div className="banner-glow" aria-hidden />
               <LogoMark size={52} />
               <h2>
-                Give your Master’s the notebook <em>it deserves</em>.
+                Give your degree the notebook <em>it deserves</em>.
               </h2>
               <Link to="/signup" className="btn btn-lg lp-gold-btn">
                 Start free <Icon name="arrowRight" size={16} />

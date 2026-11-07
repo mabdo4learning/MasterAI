@@ -1,4 +1,4 @@
--- MasterAI Pro (Paddle Billing): one row per user with their current subscription. Written only by
+-- Lecturefolio Pro (Paddle Billing): one row per user with their current subscription. Written only by
 -- the paddle-webhook Edge Function (service role); users can read their own row. The study
 -- assistant checks public.is_pro() before running. Run once in the Supabase SQL editor
 -- (after migrations-011-ai-usage.sql), before deploying.
